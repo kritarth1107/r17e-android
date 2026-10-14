@@ -23,7 +23,7 @@ class GuideSessionService : Service() {
         _state.value = st
         main.post {
             if (st == GuideController.State.OFFLINE && offline == null) {
-                offline = OfflineGuide(this, (application as R17eApp).recipes, OverlayPointer).also { it.start() }
+                offline = OfflineGuide(this, (application as R17eApp).recipes, OverlayPointer, (application as R17eApp).prefs.lang).also { it.start() }
             } else if (st == GuideController.State.LISTENING) { offline?.stop(); offline = null }
         }
     }
@@ -33,6 +33,7 @@ class GuideSessionService : Service() {
     /** Debug builds only: `adb shell am broadcast -a com.r17e.guide.DEBUG_SAY --es text "..."` sends a typed turn (emulator testing without a mic). */
     private val debugSay = object : android.content.BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
+            if (i.getBooleanExtra("drop", false)) { controller?.debugDropConnection(); return }
             i.getStringExtra("audio")?.let { controller?.injectAudio(java.io.File(getExternalFilesDir(null), it)); return }
             i.getStringExtra("text")?.let { android.util.Log.i("R17E_CTL", "debug say (controller=${controller != null})"); if (offline != null) offline?.onHeard(listOf(it)) else controller?.sendText(it) } }
     }
@@ -49,6 +50,7 @@ class GuideSessionService : Service() {
         if (intent?.action == ACTION_STOP) { stopSelf(); return START_NOT_STICKY }
         startInForeground()
         if (controller == null) {
+            HelperState.set(Phase.CONNECTING, null)
             val app = application as R17eApp
             controller = app.newController(::onState).also { it.start() }
         }
@@ -56,16 +58,17 @@ class GuideSessionService : Service() {
     }
 
     private fun startInForeground() {
+        val lang = (application as R17eApp).prefs.lang
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(NotificationChannel(CHANNEL, "Helper", NotificationManager.IMPORTANCE_LOW))
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 1, Intent(this, GuideSessionService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE)
         val n = Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentTitle("R17E helper is listening")
-            .setContentText("Talk to me. I will show you where to tap.")
+            .setContentTitle(com.r17e.guide.i18n.S.get(lang, "notif_listening"))
+            .setContentText(com.r17e.guide.i18n.S.get(lang, "notif_text"))
             .setContentIntent(open)
-            .addAction(Notification.Action.Builder(null, "Stop", stop).build())
+            .addAction(Notification.Action.Builder(null, com.r17e.guide.i18n.S.get(lang, "stop"), stop).build())
             .setOngoing(true).build()
         if (Build.VERSION.SDK_INT >= 30) startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         else startForeground(NOTIF_ID, n)
@@ -76,6 +79,7 @@ class GuideSessionService : Service() {
         controller?.stop(); controller = null
         offline?.stop(); offline = null
         _state.value = GuideController.State.STOPPED
+        HelperState.set(Phase.STOPPED, null)
         super.onDestroy()
     }
 

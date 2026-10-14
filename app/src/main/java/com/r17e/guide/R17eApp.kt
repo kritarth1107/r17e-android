@@ -17,6 +17,7 @@ import com.r17e.guide.session.ScreenTools
 
 /** Holds app-wide singletons. */
 class R17eApp : Application() {
+    val prefs by lazy { com.r17e.guide.i18n.Prefs(this) }
     val backend by lazy { BackendClient(BuildConfig.BACKEND_URL) }
     val auth by lazy {
         DeviceAuth(backend, KeystoreSigner(), PrefsAuthStore(this), "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}", BuildConfig.VERSION_NAME,
@@ -26,7 +27,7 @@ class R17eApp : Application() {
     val liveTokens by lazy { LiveTokenProvider(backend, auth::accessToken, auth::invalidate) }
 
     fun newController(onState: (GuideController.State) -> Unit) =
-        GuideController(liveTokens, screenTools(), Prompts.SYSTEM, onState, beforeConnect = { recipeRepo.refresh() })
+        GuideController(liveTokens, screenTools(), Prompts.system(prefs.lang), onState, beforeConnect = { recipeRepo.refresh() })
 
     val recipeRepo by lazy {
         RecipeRepository(

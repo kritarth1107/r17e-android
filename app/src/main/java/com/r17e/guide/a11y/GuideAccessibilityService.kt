@@ -6,7 +6,13 @@ import android.os.Looper
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
-import com.r17e.guide.overlay.DebugBubble
+import com.r17e.guide.overlay.HelperBubble
+import com.r17e.guide.session.GuideSessionService
+import com.r17e.guide.session.HelperState
+import com.r17e.guide.session.Phase
+import com.r17e.guide.i18n.S
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.collectLatest
 import com.r17e.guide.overlay.HighlightOverlay
 
 /**
@@ -21,15 +27,25 @@ class GuideAccessibilityService : AccessibilityService() {
     private var lastJson: String? = null
 
     lateinit var highlight: HighlightOverlay; private set
-    private lateinit var bubble: DebugBubble
+    private lateinit var bubble: HelperBubble
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     @Volatile var current: Snapshot? = null; private set
 
     override fun onServiceConnected() {
         instance = this
         highlight = HighlightOverlay(this)
-        bubble = DebugBubble(this, highlight) { current }
+        bubble = HelperBubble(this, highlight, { current }) {
+            if (HelperState.status.value.phase == Phase.STOPPED) GuideSessionService.start(this) else GuideSessionService.stop(this)
+        }
         bubble.show()
+        scope.launch {
+            HelperState.status.collectLatest { st ->
+                val lang = (application as com.r17e.guide.R17eApp).prefs.lang
+                bubble.render(st.phase, com.r17e.guide.ui.MainActivity.phaseText(lang, st.phase) + ". " + S.get(lang, "bubble_hint"))
+                if (st.phase == Phase.STOPPED) highlight.hide()
+            }
+        }
         Log.i(TAG, "service connected")
     }
 
@@ -72,6 +88,7 @@ class GuideAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        scope.cancel()
         if (::bubble.isInitialized) bubble.hide()
         if (::highlight.isInitialized) highlight.hide()
         instance = null
