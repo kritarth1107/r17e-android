@@ -16,7 +16,23 @@ android {
         versionCode = 1
         versionName = "0.0.1-spike"
     }
+    // Shared debug key: CI decodes DEBUG_KEYSTORE_BASE64 to a file and sets R17E_DEBUG_KEYSTORE;
+    // locally set r17e.debugKeystore in ~/.gradle/gradle.properties. Falls back to the default debug key.
+    val sharedDebugKeystore = (System.getenv("R17E_DEBUG_KEYSTORE")
+        ?: providers.gradleProperty("r17e.debugKeystore").orNull)
+        ?.let { file(it) }?.takeIf { it.exists() }
+    signingConfigs {
+        getByName("debug") {
+            if (sharedDebugKeystore != null) {
+                storeFile = sharedDebugKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
     buildTypes {
+        debug { signingConfig = signingConfigs.getByName("debug") }
         release { isMinifyEnabled = false }
     }
     compileOptions {
