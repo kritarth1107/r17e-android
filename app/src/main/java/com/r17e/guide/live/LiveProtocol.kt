@@ -16,6 +16,7 @@ sealed interface LiveEvent {
     data class ToolCalls(val calls: List<FunctionCall>) : LiveEvent
     data class ToolCancel(val ids: List<String>) : LiveEvent
     data class GoAway(val timeLeft: String?) : LiveEvent
+    data class Resumption(val handle: String?, val resumable: Boolean) : LiveEvent
 }
 
 /** Pure JSON builders/parsers for the Live protocol, kept free of Android so they unit test. */
@@ -25,7 +26,7 @@ object LiveProtocol {
     private val b64e = Base64.getEncoder()
     private val b64d = Base64.getDecoder()
 
-    fun setup(modelResource: String, systemPrompt: String, tools: JSONArray, voice: String = "Aoede"): String =
+    fun setup(modelResource: String, systemPrompt: String, tools: JSONArray, voice: String = "Aoede", resumeHandle: String? = null): String =
         JSONObject().put("setup", JSONObject().apply {
             put("model", modelResource)
             put("generationConfig", JSONObject().apply {
@@ -37,6 +38,9 @@ object LiveProtocol {
             if (tools.length() > 0) put("tools", JSONArray().put(JSONObject().put("functionDeclarations", tools)))
             put("inputAudioTranscription", JSONObject())
             put("outputAudioTranscription", JSONObject())
+            // Resumable sessions + sliding-window compression let a helper session outlive the per-connection limits.
+            put("sessionResumption", JSONObject().apply { resumeHandle?.let { put("handle", it) } })
+            put("contextWindowCompression", JSONObject().put("slidingWindow", JSONObject()))
         }).toString()
 
     fun audioChunk(pcm16k: ByteArray, len: Int = pcm16k.size): String =
@@ -82,6 +86,9 @@ object LiveProtocol {
         }
         o.optJSONObject("toolCallCancellation")?.optJSONArray("ids")?.let { ids ->
             out += LiveEvent.ToolCancel((0 until ids.length()).map { ids.getString(it) })
+        }
+        o.optJSONObject("sessionResumptionUpdate")?.let {
+            out += LiveEvent.Resumption(it.optString("newHandle").ifEmpty { null }, it.optBoolean("resumable"))
         }
         o.optJSONObject("goAway")?.let { out += LiveEvent.GoAway(it.optString("timeLeft").ifEmpty { null }) }
         return out

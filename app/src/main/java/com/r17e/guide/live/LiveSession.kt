@@ -12,6 +12,7 @@ class LiveSession(
     private val systemPrompt: String,
     private val tools: JSONArray,
     private val listener: Listener,
+    private val resumeHandle: String? = null,
     client: OkHttpClient = defaultClient,
 ) {
     interface Listener {
@@ -20,19 +21,22 @@ class LiveSession(
     }
 
     @Volatile var ready = false; private set
+    @Volatile private var closedByUs = false
     private val ws: WebSocket = client.newWebSocket(
         Request.Builder().url(creds.websocketUrl).header("Authorization", "Bearer ${creds.accessToken}").build(),
         object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
-                webSocket.send(LiveProtocol.setup(creds.modelResource, systemPrompt, tools))
+                webSocket.send(LiveProtocol.setup(creds.modelResource, systemPrompt, tools, resumeHandle = resumeHandle))
             }
             override fun onMessage(webSocket: WebSocket, text: String) = dispatch(text)
             override fun onMessage(webSocket: WebSocket, bytes: okio.ByteString) = dispatch(bytes.utf8())
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) { webSocket.close(1000, null) }
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                if (closedByUs) return
                 ready = false; listener.onClosed("closed $code $reason", null)
             }
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                if (closedByUs) return
                 ready = false; Log.w(TAG, "live failure ${response?.code}", t)
                 listener.onClosed("failure ${response?.code ?: ""}", t)
             }
@@ -48,7 +52,7 @@ class LiveSession(
     fun sendAudio(buf: ByteArray, len: Int) { if (ready) ws.send(LiveProtocol.audioChunk(buf, len)) }
     fun sendText(text: String) { if (ready) ws.send(LiveProtocol.userText(text)) }
     fun send(raw: String) = ws.send(raw)
-    fun close() { ready = false; ws.close(1000, "bye") }
+    fun close() { closedByUs = true; ready = false; ws.close(1000, "bye") }
 
     companion object {
         private const val TAG = "R17E_LIVE"

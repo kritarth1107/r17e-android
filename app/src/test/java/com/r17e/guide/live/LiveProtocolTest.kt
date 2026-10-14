@@ -40,3 +40,17 @@ class LiveProtocolTest {
         assertEquals("c1", fr.getString("id")); assertTrue(fr.getJSONObject("response").getBoolean("ok"))
     }
 }
+
+class LiveResumptionTest {
+    @Test fun setupCarriesResumptionAndCompression() {
+        val s = JSONObject(LiveProtocol.setup("m", "p", JSONArray(), resumeHandle = "h1")).getJSONObject("setup")
+        assertEquals("h1", s.getJSONObject("sessionResumption").getString("handle"))
+        assertTrue(s.getJSONObject("contextWindowCompression").has("slidingWindow"))
+        assertFalse(JSONObject(LiveProtocol.setup("m", "p", JSONArray())).getJSONObject("setup").getJSONObject("sessionResumption").has("handle"))
+    }
+
+    @Test fun parsesResumptionUpdateAndGoAway() {
+        assertEquals(listOf(LiveEvent.Resumption("h2", true)), LiveProtocol.parse("""{"sessionResumptionUpdate":{"newHandle":"h2","resumable":true}}"""))
+        assertEquals(listOf(LiveEvent.GoAway("10s")), LiveProtocol.parse("""{"goAway":{"timeLeft":"10s"}}"""))
+    }
+}
