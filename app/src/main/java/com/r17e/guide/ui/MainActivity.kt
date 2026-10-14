@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.LifecycleResumeEffect
+import kotlinx.coroutines.launch
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.r17e.guide.BuildConfig
 import com.r17e.guide.R17eApp
@@ -76,7 +77,7 @@ class MainActivity : ComponentActivity() {
         var a11yOn by remember { mutableStateOf(A11yStatus.isEnabled(this)) }
         LifecycleResumeEffect(Unit) { a11yOn = A11yStatus.isEnabled(this@MainActivity); permTick++; onPauseOrDispose { } }
         @Suppress("UNUSED_VARIABLE") val tick = permTick // recompose after permission results
-        val last = 5
+        val last = 6
         Column(Modifier.fillMaxSize().padding(24.dp)) {
             LinearProgressIndicator(progress = { (step + 1) / (last + 1f) }, Modifier.fillMaxWidth().height(8.dp).semantics { contentDescription = "Step ${step + 1} of ${last + 1}" })
             Spacer(Modifier.height(20.dp))
@@ -109,6 +110,10 @@ class MainActivity : ComponentActivity() {
                             }, Modifier.fillMaxWidth().heightIn(min = 64.dp)) { Text(s("open_app_info"), fontSize = 20.sp) }
                         }
                     }
+                    5 -> {
+                        Text(s("family_title"), style = MaterialTheme.typography.headlineLarge)
+                        FamilyLink(lang)
+                    }
                     else -> {
                         Text(s("ready_title"), style = MaterialTheme.typography.headlineLarge)
                         Text(s("ready_body"), style = MaterialTheme.typography.bodyLarge)
@@ -119,7 +124,7 @@ class MainActivity : ComponentActivity() {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (step > 0) OutlinedButton(onClick = { step-- }, Modifier.weight(1f).heightIn(min = 64.dp)) { Text(s("back"), fontSize = 20.sp) }
                 val canNext = when (step) { 2 -> micOk; 4 -> a11yOn; else -> true }
-                val label = when { step == 1 -> s("agree"); step == last -> s("done"); !canNext && step in setOf(3, 4) -> s("skip"); else -> s("next") }
+                val label = when { step == 1 -> s("agree"); step == last -> s("done"); !canNext && step in setOf(3, 4) -> s("skip"); step == 5 && prefs.familyGroup == null -> s("skip"); else -> s("next") }
                 Button(
                     onClick = { if (step == last) finish() else step++ },
                     enabled = canNext || step in setOf(3, 4),
@@ -127,6 +132,49 @@ class MainActivity : ComponentActivity() {
                 ) { Text(label, fontSize = 22.sp) }
             }
         }
+    }
+
+    @Composable
+    private fun FamilyLink(lang: Lang) {
+        val s = { k: String -> S.get(lang, k) }
+        val app = application as R17eApp
+        var group by remember { mutableStateOf(prefs.familyGroup) }
+        var code by rememberSaveable { mutableStateOf("") }
+        var busy by remember { mutableStateOf(false) }
+        var error by remember { mutableStateOf<String?>(null) }
+        val scope = rememberCoroutineScope()
+        if (group != null) {
+            Text("${s("family_linked")}: $group ✓", color = R17eColors.Listening, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(s("family_alerts"), fontSize = 18.sp, color = R17eColors.Ink)
+            return
+        }
+        Text(s("family_body"), style = MaterialTheme.typography.bodyLarge)
+        OutlinedTextField(
+            value = code, onValueChange = { v -> code = v.uppercase().filter { it.isLetterOrDigit() }.take(20); error = null },
+            label = { Text(s("family_code"), fontSize = 18.sp) }, singleLine = true,
+            textStyle = LocalTextStyle.current.copy(fontSize = 30.sp, letterSpacing = 4.sp, fontWeight = FontWeight.Bold),
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters,
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii),
+            modifier = Modifier.fillMaxWidth(),
+        )
+        error?.let { Text(it, color = R17eColors.Danger, fontSize = 20.sp) }
+        Button(
+            enabled = code.length >= 6 && !busy,
+            onClick = {
+                busy = true
+                scope.launch {
+                    val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        runCatching { app.backend.linkFamily(app.auth.accessToken(), code) }
+                    }
+                    busy = false
+                    r.onSuccess { name -> val g = name.ifBlank { "Family" }; prefs.familyGroup = g; group = g; app.flushSafety() }
+                     .onFailure { e -> error = if ((e as? com.r17e.guide.backend.BackendException)?.code == 404 || (e as? com.r17e.guide.backend.BackendException)?.code == 400) s("family_bad_code") else s("family_net") }
+                }
+            },
+            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp),
+        ) { Text(if (busy) "…" else s("family_connect"), fontSize = 22.sp) }
+        Text(s("family_alerts"), fontSize = 18.sp, color = R17eColors.Ink)
     }
 
     @Composable
@@ -171,6 +219,12 @@ class MainActivity : ComponentActivity() {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(s("screen_off"), fontSize = 20.sp, color = R17eColors.Ink)
                     Button(onClick = { startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) }, Modifier.heightIn(min = 56.dp)) { Text(s("turn_on"), fontSize = 20.sp) }
+                }
+            }
+            Card(colors = CardDefaults.cardColors(containerColor = R17eColors.Card), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(s("family_title"), style = MaterialTheme.typography.headlineSmall)
+                    FamilyLink(lang)
                 }
             }
             InfoCard(s("try_saying") + ":\n" + listOf("ex_1", "ex_2", "ex_3").joinToString("\n") { "• " + s(it) })

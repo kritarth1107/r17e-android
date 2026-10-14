@@ -27,7 +27,7 @@ class R17eApp : Application() {
     val liveTokens by lazy { LiveTokenProvider(backend, auth::accessToken, auth::invalidate) }
 
     fun newController(onState: (GuideController.State) -> Unit) =
-        GuideController(liveTokens, screenTools(), Prompts.system(prefs.lang), onState, beforeConnect = { recipeRepo.refresh() })
+        GuideController(liveTokens, screenTools(), Prompts.system(prefs.lang), onState, beforeConnect = { recipeRepo.refresh(); runCatching { safetyReporter.flush() } })
 
     val recipeRepo by lazy {
         RecipeRepository(
@@ -36,6 +36,20 @@ class R17eApp : Application() {
             fetch = { backend.recipesJson(auth.accessToken()) },
         )
     }
+    val safetyReporter by lazy {
+        com.r17e.guide.safety.SafetyReporter(java.io.File(filesDir, "safety_queue.json"), { backend.safetyEvent(auth.accessToken(), it) })
+    }
+    private val bg = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "r17e-bg") }
+
+    /** Safety alerts go to the family only after the elder linked a family (consent); metadata only. */
+    fun onSafetySnapshot(snap: com.r17e.guide.a11y.Snapshot) {
+        if (prefs.familyGroup == null) return
+        val f = com.r17e.guide.safety.SafetyPolicy.filter(snap)
+        if (f.flags.isNotEmpty()) bg.execute { runCatching { safetyReporter.onSnapshot(f) } }
+    }
+
+    fun flushSafety() = bg.execute { runCatching { safetyReporter.flush() } }
+
     val recipes: RecipeBook get() = recipeRepo.current
 
     private fun screenTools() = ScreenTools({ GuideAccessibilityService.instance?.current }, OverlayPointer, recipes = { recipeRepo.current })

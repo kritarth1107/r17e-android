@@ -63,6 +63,13 @@ class BackendClient(
         return text
     }
 
+    /** POST /v1/family/link with a caregiver's invite code. Returns the family group name. */
+    fun linkFamily(accessToken: String, code: String): String =
+        call("/v1/family/link", JSONObject().put("code", code), accessToken).getJSONObject("group").optString("name")
+
+    /** POST /v1/safety-events. Body is built by SafetyReporter (metadata only). */
+    fun safetyEvent(accessToken: String, event: JSONObject) { call("/v1/safety-events", event, accessToken) }
+
     private fun tokens(o: JSONObject) =
         Tokens(o.getString("accessToken"), o.getString("refreshToken"), now() + o.optLong("expiresIn", 900) * 1000)
 

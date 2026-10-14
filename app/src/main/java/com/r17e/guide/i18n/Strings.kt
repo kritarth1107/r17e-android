@@ -16,6 +16,10 @@ class Prefs(ctx: Context) {
         get() = p.getString("lang", null)?.let { runCatching { Lang.valueOf(it) }.getOrNull() }
             ?: if (Locale.getDefault().language == "hi") Lang.HI else Lang.EN
         set(v) { p.edit().putString("lang", v.name).apply() }
+    /** Name of the linked family group, or null. */
+    var familyGroup: String?
+        get() = p.getString("family_group", null)
+        set(v) { p.edit().putString("family_group", v).apply() }
     var onboarded: Boolean
         get() = p.getBoolean("onboarded", false)
         set(v) { p.edit().putBoolean("onboarded", v).apply() }
@@ -71,6 +75,14 @@ object S {
         "offline_hello" to Triple("The online helper is not available. Tell me what you want to do, like video call.", "इंटरनेट वाला सहायक अभी नहीं है। बताइए, क्या करना है? जैसे वीडियो कॉल।", "Online helper abhi nahi hai. Bataiye kya karna hai, jaise video call."),
         "offline_sorry" to Triple("Sorry, I did not get that. Please say it again.", "माफ़ कीजिए, समझ नहीं आया। फिर से बोलिए।", "Sorry, samajh nahi aaya. Phir se boliye."),
         "offline_done" to Triple("Well done! That was the last step.", "बहुत बढ़िया! यह आखिरी कदम था।", "Bahut badhiya! Yeh aakhri step tha."),
+        "family_title" to Triple("Connect your family", "अपने परिवार से जोड़ें", "Family se connect karein"),
+        "family_body" to Triple("Ask your son, daughter or carer for the code from the R17E family dashboard and type it here.", "अपने बेटे, बेटी या देखभाल करने वाले से R17E परिवार डैशबोर्ड का कोड लें और यहाँ लिखें।", "Apne bete, beti ya carer se R17E family dashboard ka code lijiye aur yahan likhiye."),
+        "family_alerts" to Triple("If I see a scam message, a PIN screen or a payment screen, your family gets a short alert. What is on your screen is never sent to them.", "अगर मुझे धोखे वाला मैसेज, PIN स्क्रीन या पेमेंट स्क्रीन दिखे, तो परिवार को छोटा सा अलर्ट जाता है। आपकी स्क्रीन की बातें उन्हें कभी नहीं भेजी जातीं।", "Agar mujhe fraud message, PIN screen ya payment screen dikhe, to family ko chhota alert jaata hai. Aapki screen ki baatein unhe kabhi nahi bheji jaati."),
+        "family_code" to Triple("Family code", "परिवार कोड", "Family code"),
+        "family_connect" to Triple("Connect", "जोड़ें", "Connect karein"),
+        "family_linked" to Triple("Connected to", "इनसे जुड़ा है", "Connected hai"),
+        "family_bad_code" to Triple("That code did not work. Check it or ask for a new one.", "यह कोड काम नहीं किया। जाँचें या नया कोड माँगें।", "Yeh code kaam nahi kiya. Check kijiye ya naya code maangiye."),
+        "family_net" to Triple("No internet. Please try again.", "इंटरनेट नहीं है। फिर से कोशिश करें।", "Internet nahi hai. Phir se try kijiye."),
         "bubble_hint" to Triple("Tap to talk", "बात करने के लिए दबाएँ", "Baat karne ke liye dabaiye"),
     )
 

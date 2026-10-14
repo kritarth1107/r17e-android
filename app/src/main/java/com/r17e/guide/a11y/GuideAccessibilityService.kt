@@ -68,6 +68,7 @@ class GuideAccessibilityService : AccessibilityService() {
         if (snap.pkg == packageName) return
         val json = snap.toJson()
         current = snap
+        (application as com.r17e.guide.R17eApp).onSafetySnapshot(snap)
         highlight.onSnapshot(snap)
         bubble.onSnapshot(snap)
         if (json != lastJson) {
