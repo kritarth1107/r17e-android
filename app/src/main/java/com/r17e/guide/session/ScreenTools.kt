@@ -2,6 +2,7 @@ package com.r17e.guide.session
 
 import com.r17e.guide.a11y.Snapshot
 import com.r17e.guide.live.FunctionCall
+import com.r17e.guide.safety.SafetyPolicy
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -18,7 +19,7 @@ interface Pointer {
 class ScreenTools(
     private val snapshot: () -> Snapshot?,
     private val pointer: Pointer,
-    private val filter: (Snapshot) -> Snapshot = { it },
+    private val filter: (Snapshot) -> Snapshot = SafetyPolicy::filter,
 ) : ToolHandler {
     /** Last snapshot handed to the model; highlight ids are resolved against it, then against the live screen. */
     @Volatile private var lastSent: Snapshot? = null
@@ -48,9 +49,12 @@ class ScreenTools(
         val live = snapshot()?.let(filter)
         val snap = listOfNotNull(live, lastSent).firstOrNull { it.node(id) != null }
             ?: return err("unknown_node_id: call get_screen again and use an id from it")
-        pointer.point(snap, id, caption)
         val n = snap.node(id)!!
+        val v = SafetyPolicy.vet(snap, n)
+        if (v is SafetyPolicy.Verdict.Deny) { pointer.clear(); return err(v.reason) }
+        pointer.point(snap, id, SafetyPolicy.caption(caption))
         return JSONObject().put("ok", true).put("label", n.label).put("stale", snap !== live)
+            .apply { if (v is SafetyPolicy.Verdict.AllowWithNote) put("note", v.note) }
     }
 
     private fun err(msg: String) = JSONObject().put("error", msg)

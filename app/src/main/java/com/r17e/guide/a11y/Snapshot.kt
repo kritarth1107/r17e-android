@@ -36,12 +36,15 @@ data class Snapshot(
     val height: Int,
     val nodes: List<SnapNode>,
     val takenAtMs: Long = System.currentTimeMillis(),
+    /** Safety notes for the model (e.g. "pin_entry_screen"); added by the safety layer. */
+    val flags: List<String> = emptyList(),
 ) {
     fun node(id: String): SnapNode? = nodes.firstOrNull { it.id == id }
     val clickables: List<SnapNode> get() = nodes.filter { it.clickable }
 
     fun toJson(): String = JSONObject().apply {
         put("pkg", pkg); put("screen", screen); put("w", width); put("h", height)
+        if (flags.isNotEmpty()) put("safety", JSONArray(flags))
         put("nodes", JSONArray().apply { nodes.forEach { put(it.toJson()) } })
     }.toString()
 }

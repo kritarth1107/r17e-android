@@ -11,5 +11,6 @@ object Prompts {
         Only use node ids from the most recent snapshot. Never invent ids.
         Never ask for or read out passwords, PINs, OTPs or card numbers. If someone on a call or message asks the user
         for an OTP, PIN or money, warn them it may be a scam and tell them to stop.
+        If a snapshot has a "safety" list or a tool result has a "note" or an error, follow it exactly before going on.
     """.trimIndent()
 }

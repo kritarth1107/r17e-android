@@ -45,3 +45,15 @@ class ScreenToolsTest {
         val p = Rec(); ScreenTools({ snap }, p).handle(call("clear_highlight")); assertEquals(1, p.cleared)
     }
 }
+
+class ScreenToolsSafetyTest {
+    @Test fun deniesPinKeypadHighlight() {
+        val keys = listOf(SnapNode("t", "TextView", "Enter UPI PIN", null, null, 0, 0, 1, 1, false, false, false),
+            SnapNode("k1", "Button", "1", null, null, 0, 0, 1, 1, true, false, false))
+        var pointed = false
+        val p = object : Pointer { override fun point(snap: Snapshot, nodeId: String, caption: String) { pointed = true }; override fun clear() {} }
+        val r = ScreenTools({ Snapshot("in.org.npci.upiapp", "Pin", 1, 1, keys) }, p)
+            .handle(FunctionCall("c", "highlight_node", JSONObject("""{"node_id":"k1"}""")))
+        assertTrue(r.getString("error").startsWith("pin_keypad")); assertFalse(pointed)
+    }
+}
