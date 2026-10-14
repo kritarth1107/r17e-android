@@ -38,6 +38,9 @@ jobs:
             echo "No keystore secret (e.g. fork PR); using default debug key."
           fi
 
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
