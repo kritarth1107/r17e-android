@@ -30,6 +30,19 @@ class GuideSessionService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /** Debug builds only: `adb shell am broadcast -a com.r17e.guide.DEBUG_SAY --es text "..."` sends a typed turn (emulator testing without a mic). */
+    private val debugSay = object : android.content.BroadcastReceiver() {
+        override fun onReceive(c: Context, i: Intent) { i.getStringExtra("text")?.let { android.util.Log.i("R17E_CTL", "debug say (controller=${controller != null})"); if (offline != null) offline?.onHeard(listOf(it)) else controller?.sendText(it) } }
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        if (com.r17e.guide.BuildConfig.DEBUG) {
+            androidx.core.content.ContextCompat.registerReceiver(this, debugSay,
+                android.content.IntentFilter("com.r17e.guide.DEBUG_SAY"), androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) { stopSelf(); return START_NOT_STICKY }
         startInForeground()
@@ -57,6 +70,7 @@ class GuideSessionService : Service() {
     }
 
     override fun onDestroy() {
+        if (com.r17e.guide.BuildConfig.DEBUG) runCatching { unregisterReceiver(debugSay) }
         controller?.stop(); controller = null
         offline?.stop(); offline = null
         _state.value = GuideController.State.STOPPED

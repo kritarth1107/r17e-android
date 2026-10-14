@@ -46,14 +46,8 @@ class OfflineGuide(private val ctx: Context, private val book: RecipeBook, priva
         stt?.destroy()
         stt = SpeechRecognizer.createSpeechRecognizer(ctx).apply {
             setRecognitionListener(object : RecognitionListener {
-                override fun onResults(results: Bundle) {
-                    val heard = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
-                    val recipe = heard.firstNotNullOfOrNull { book.match(it) }
-                    if (recipe == null) { say(if (lang == "hi") "माफ़ कीजिए, समझ नहीं आया। फिर से बोलिए।" else "Sorry, I did not get that. Please say it again."); main.postDelayed({ listen() }, 3000); return }
-                    runner = RecipeRunner(recipe)
-                    say(recipe.title[lang] ?: recipe.title.values.first())
-                    main.removeCallbacks(poll); main.post(poll)
-                }
+                override fun onResults(results: Bundle) =
+                    onHeard(results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty())
                 override fun onError(error: Int) { main.postDelayed({ listen() }, 2000) }
                 override fun onReadyForSpeech(params: Bundle?) {}
                 override fun onBeginningOfSpeech() {}
@@ -70,12 +64,24 @@ class OfflineGuide(private val ctx: Context, private val book: RecipeBook, priva
         }
     }
 
+    /** Speech results (or a typed debug turn): pick a recipe and start following the screen. */
+    fun onHeard(heard: List<String>) {
+        val recipe = heard.firstNotNullOfOrNull { book.match(it) }
+        android.util.Log.i("R17E_OFFLINE", "heard=$heard recipe=${recipe?.id}")
+        if (recipe == null) { say(if (lang == "hi") "माफ़ कीजिए, समझ नहीं आया। फिर से बोलिए।" else "Sorry, I did not get that. Please say it again."); main.postDelayed({ listen() }, 3000); return }
+        stt?.cancel()
+        runner = RecipeRunner(recipe)
+        say(recipe.title[lang] ?: recipe.title.values.first())
+        main.removeCallbacks(poll); main.post(poll)
+    }
+
     private fun tick() {
         val r = runner ?: return
         val snap = GuideAccessibilityService.instance?.current?.let(SafetyPolicy::filter) ?: return
         val g = r.onSnapshot(snap) ?: return
         if (SafetyPolicy.vet(snap, g.node) is SafetyPolicy.Verdict.Deny) { pointer.clear(); return }
         val line = g.say[lang] ?: g.say.values.first()
+        android.util.Log.i("R17E_OFFLINE", "step ${g.step} -> ${g.node.id} ${g.node.label}")
         pointer.point(snap, g.node.id, line)
         say(line)
     }

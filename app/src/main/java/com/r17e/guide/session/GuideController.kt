@@ -39,21 +39,26 @@ class GuideController(
         }
     }
 
-    fun sendText(text: String) { session?.sendText(text) }
+    fun sendText(text: String) { Log.i(TAG, "sendText ready=${session?.ready}"); session?.sendText(text) }
 
     override fun onEvent(e: LiveEvent) {
         when (e) {
-            LiveEvent.SetupComplete -> { audio.start(); onState(State.LISTENING) }
+            LiveEvent.SetupComplete -> {
+                Log.i(TAG, "setupComplete"); audio.start(); onState(State.LISTENING) }
             is LiveEvent.Audio -> audio.play(e.pcm24k)
             LiveEvent.Interrupted -> audio.flushPlayback()
             is LiveEvent.ToolCalls -> {
+                e.calls.forEach { Log.i(TAG, "tool ${it.name} ${it.args}") }
                 val replies = e.calls.map { c ->
                     c to runCatching { tools.handle(c) }.getOrElse { org.json.JSONObject().put("error", it.message ?: "failed") }
+                }
+                if (com.r17e.guide.BuildConfig.DEBUG) replies.forEach { (c, r) ->
+                    val j = r.toString(); Log.i(TAG, "tool reply ${c.name}: " + if (j.length > 600) j.take(300) + " ... " + j.takeLast(300) else j)
                 }
                 session?.send(LiveProtocol.toolResponse(replies))
             }
             is LiveEvent.ToolCancel -> tools.cancel(e.ids)
-            is LiveEvent.Transcript -> Log.d(TAG, (if (e.fromModel) "model: " else "user: ") + e.text)
+            is LiveEvent.Transcript -> Log.i(TAG, (if (e.fromModel) "model: " else "user: ") + e.text)
             is LiveEvent.GoAway -> io.execute { reconnect() }
             LiveEvent.TurnComplete -> {}
         }
