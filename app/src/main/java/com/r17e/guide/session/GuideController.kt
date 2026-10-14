@@ -19,6 +19,7 @@ class GuideController(
 
     private val io = Executors.newSingleThreadExecutor { Thread(it, "r17e-ctl") }
     private var session: LiveSession? = null
+    private var sessionId: String? = null
     private val audio = AudioIO { buf, n -> session?.sendAudio(buf, n) }
     @Volatile private var stopped = false
     @Volatile var lastError: String? = null; private set
@@ -27,7 +28,8 @@ class GuideController(
         stopped = false
         onState(State.CONNECTING)
         try {
-            val creds = tokens.get()
+            val creds = tokens.get(forceNew = true)
+            sessionId = creds.sessionId
             session = LiveSession(creds, systemPrompt, tools.declarations, this)
         } catch (e: Exception) {
             Log.w(TAG, "could not start live session", e)
@@ -64,12 +66,17 @@ class GuideController(
 
     private fun reconnect() {
         session?.close(); session = null; audio.stop()
+        sessionId?.let { tokens.end(it) }; sessionId = null
         start()
     }
 
     fun stop() {
         stopped = true
-        io.execute { session?.close(); session = null; audio.stop(); onState(State.STOPPED) }
+        io.execute {
+            session?.close(); session = null; audio.stop()
+            sessionId?.let { tokens.end(it) }; sessionId = null
+            onState(State.STOPPED)
+        }
     }
 
     private companion object { const val TAG = "R17E_CTL" }

@@ -12,20 +12,24 @@ class BackendClientTest {
         }
     }
 
-    @Test fun registerParsesAndSendsAndroidPlatform() {
-        val h = FakeHttp(201, """{"deviceId":"d1","deviceToken":"r17e_dev_x"}""")
-        val r = BackendClient("http://10.0.2.2:8080/", h).register("install-123", "Pixel", "0.1")
-        assertEquals(Registration("d1", "r17e_dev_x"), r)
+    @Test fun registerSendsAndroidPlatformAndKey() {
+        val h = FakeHttp(201, """{"deviceId":"d1","keyAlg":"ES256","integrity":"skipped"}""")
+        assertEquals("d1", BackendClient("http://10.0.2.2:8080/", h).register("install-123", "PUBKEY", "Pixel", "0.1"))
         assertEquals("http://10.0.2.2:8080/v1/devices/register", h.url)
         val sent = JSONObject(h.sent)
-        assertEquals("android", sent.getString("platform"))
-        assertEquals("install-123", sent.getString("installId"))
+        assertEquals("android", sent.getString("platform")); assertEquals("PUBKEY", sent.getString("publicKey"))
         assertNull(h.bearer)
+    }
+
+    @Test fun tokensComputeExpiry() {
+        val h = FakeHttp(200, """{"accessToken":"a","tokenType":"Bearer","expiresIn":900,"refreshToken":"r"}""")
+        val t = BackendClient("http://x", h, now = { 1000L }).refresh("old")
+        assertEquals(Tokens("a", "r", 901_000L), t); assertFalse(t.toString().contains("a,"))
     }
 
     @Test fun errorStatusSurfacesBackendError() {
         val h = FakeHttp(400, """{"error":"invalid_body"}""")
-        val e = assertThrows(BackendException::class.java) { BackendClient("http://x", h).register("i", null, null) }
+        val e = assertThrows(BackendException::class.java) { BackendClient("http://x", h).challenge("d") }
         assertEquals(400, e.code); assertEquals("invalid_body", e.error)
     }
 }

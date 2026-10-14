@@ -10,9 +10,9 @@ class LiveTokenProviderTest {
 
     @Test fun parsesSessionAndCaches() {
         var calls = 0
-        val c = BackendClient("http://x") { url, _, bearer ->
+        val c = BackendClient("http://x", http = { url, _, bearer ->
             calls++; assertTrue(url.endsWith("/v1/live/session")); assertEquals("tok", bearer); 200 to ok
-        }
+        })
         val p = LiveTokenProvider(c, { "tok" }, {}, { 0L })
         val creds = p.get()
         assertEquals("s1", creds.sessionId)
@@ -24,13 +24,13 @@ class LiveTokenProviderTest {
 
     @Test fun reRegistersOnceOn401() {
         var tok = "old"; var reg = 0
-        val c = BackendClient("http://x") { _, _, bearer -> if (bearer == "old") 401 to """{"error":"invalid_device_token"}""" else 200 to ok }
+        val c = BackendClient("http://x", http = { _, _, bearer -> if (bearer == "old") 401 to """{"error":"invalid_device_token"}""" else 200 to ok })
         val creds = LiveTokenProvider(c, { tok }, { reg++; tok = "new" }).get()
         assertEquals(1, reg); assertEquals("s1", creds.sessionId)
     }
 
     @Test fun surfaces503() {
-        val c = BackendClient("http://x") { _, _, _ -> 503 to """{"error":"vertex_credentials_unavailable"}""" }
+        val c = BackendClient("http://x", http = { _, _, _ -> 503 to """{"error":"vertex_credentials_unavailable"}""" })
         val e = assertThrows(BackendException::class.java) { LiveTokenProvider(c, { "t" }, {}).get() }
         assertEquals("vertex_credentials_unavailable", e.error)
     }

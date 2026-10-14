@@ -27,21 +27,24 @@ data class LiveCredentials(
     }
 }
 
-/** Gets fresh Live credentials, re-registering once if the device token was rejected. */
+/** Gets fresh Live credentials, re-authenticating once if the access token was rejected. */
 class LiveTokenProvider(
     private val client: BackendClient,
     private val token: () -> String,
-    private val reRegister: () -> Unit,
+    private val reAuth: () -> Unit,
     private val now: () -> Long = System::currentTimeMillis,
 ) {
     private var cached: LiveCredentials? = null
 
+    /** Best effort: tell the backend the session ended. */
+    fun end(sessionId: String) = runCatching { client.endSession(token(), sessionId) }
+
     @Synchronized
-    fun get(forceNew: Boolean = false): LiveCredentials {
+    fun get(forceNew: Boolean = false, goal: String? = null, appPackage: String? = null): LiveCredentials {
         cached?.takeIf { !forceNew && it.isFresh(now()) }?.let { return it }
-        val c = try { client.liveSession(token()) } catch (e: BackendException) {
+        val c = try { client.liveSession(token(), goal, appPackage) } catch (e: BackendException) {
             if (e.code != 401) throw e
-            reRegister(); client.liveSession(token())
+            reAuth(); client.liveSession(token(), goal, appPackage)
         }
         cached = c
         return c

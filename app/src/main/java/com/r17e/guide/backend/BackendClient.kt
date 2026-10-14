@@ -8,12 +8,16 @@ import java.net.URL
 /** Thrown for any non-2xx backend reply. [code] is the HTTP status, [error] the backend's error field. */
 class BackendException(val code: Int, val error: String?) : IOException("backend $code: ${error ?: "?"}")
 
-data class Registration(val deviceId: String, val deviceToken: String)
+data class Challenge(val challengeId: String, val message: String)
+data class Tokens(val accessToken: String, val refreshToken: String, val expiresAtMs: Long) {
+    override fun toString() = "Tokens(<redacted>, expiresAtMs=$expiresAtMs)"
+}
 
 /** Minimal blocking client for r17e-backend. Call from a background thread. */
 class BackendClient(
     private val baseUrl: String,
     private val http: Http = UrlConnectionHttp(),
+    private val now: () -> Long = System::currentTimeMillis,
 ) {
     /** Transport seam so parsing can be unit tested without a server. */
     fun interface Http {
@@ -21,19 +25,37 @@ class BackendClient(
         fun post(url: String, json: String, bearer: String?): Pair<Int, String>
     }
 
-    fun register(installId: String, model: String?, appVersion: String?): Registration {
+    /** POST /v1/devices/register with this install's public key (base64 SPKI). Returns deviceId. */
+    fun register(installId: String, publicKey: String, model: String?, appVersion: String?): String {
         val body = JSONObject().apply {
-            put("installId", installId); put("platform", "android")
+            put("installId", installId); put("platform", "android"); put("publicKey", publicKey)
             model?.let { put("model", it.take(128)) }
             appVersion?.let { put("appVersion", it.take(64)) }
         }
-        val o = call("/v1/devices/register", body, null)
-        return Registration(o.getString("deviceId"), o.getString("deviceToken"))
+        return call("/v1/devices/register", body, null).getString("deviceId")
     }
 
-    /** POST /v1/live/session with the device token. */
-    fun liveSession(deviceToken: String): LiveCredentials =
-        LiveCredentials.fromJson(call("/v1/live/session", JSONObject(), deviceToken))
+    fun challenge(deviceId: String): Challenge =
+        call("/v1/auth/challenge", JSONObject().put("deviceId", deviceId), null)
+            .let { Challenge(it.getString("challengeId"), it.getString("message")) }
+
+    fun deviceToken(deviceId: String, challengeId: String, signatureB64: String): Tokens = tokens(
+        call("/v1/auth/device/token", JSONObject().put("deviceId", deviceId).put("challengeId", challengeId).put("signature", signatureB64), null))
+
+    fun refresh(refreshToken: String): Tokens = tokens(call("/v1/auth/refresh", JSONObject().put("refreshToken", refreshToken), null))
+
+    /** POST /v1/live/session with the device access token. */
+    fun liveSession(accessToken: String, goal: String? = null, appPackage: String? = null): LiveCredentials =
+        LiveCredentials.fromJson(call("/v1/live/session", JSONObject().apply {
+            goal?.let { put("goal", it.take(500)) }; appPackage?.let { put("appPackage", it.take(255)) }
+        }, accessToken))
+
+    fun endSession(accessToken: String, sessionId: String, summary: String? = null) {
+        call("/v1/sessions/$sessionId/end", JSONObject().apply { summary?.let { put("summary", it.take(4000)) } }, accessToken)
+    }
+
+    private fun tokens(o: JSONObject) =
+        Tokens(o.getString("accessToken"), o.getString("refreshToken"), now() + o.optLong("expiresIn", 900) * 1000)
 
     internal fun call(path: String, body: JSONObject, bearer: String?): JSONObject {
         val (code, text) = http.post(baseUrl.trimEnd('/') + path, body.toString(), bearer)
