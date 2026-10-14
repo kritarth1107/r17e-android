@@ -14,7 +14,7 @@ R17E guide app: a voice helper for older people in India (Kotlin + Jetpack Compo
 
 ### Play Integrity
 Registration sends a classic Play Integrity token (nonce = base64url(SHA-256(`installId:publicKey`))) when the GCP
-project **number** is set: `r17e.gcpProjectNumber=123456789012` in `~/.gradle/gradle.properties` or `-P`. Without it the
+project **number** is set via `r17e.gcpProjectNumber` (committed in `gradle.properties`: 261222057477, project r17e-live-xsvbu; override with `-P`). Without it the
 build warns and registration skips the token (the backend currently records `not_checked`).
 
 ### Backend URL
