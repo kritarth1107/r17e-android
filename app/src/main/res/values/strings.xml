@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">R17E Guide</string>
+    <string name="a11y_label">R17E Guide (screen helper)</string>
+    <string name="a11y_description">R17E Guide reads the buttons and text on your screen so it can point to the right button and explain what to do. It only shows you where to tap. It never taps, types or changes anything for you. Password fields are never read.</string>
+</resources>
