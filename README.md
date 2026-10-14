@@ -51,7 +51,12 @@ adb logcat -s R17E_SNAP R17E
 ```
 Tap the blue **?** bubble → pick a node → a pulsing ring appears over it.
 
-Voice helper: start the backend (`r17e-backend`, `npm run dev`), tap **Start talking to helper**, allow the microphone, and ask e.g. "WhatsApp pe video call kaise karun?". Logs: `adb logcat -s R17E_LIVE R17E_CTL`.
+Voice helper: start the backend (`r17e-backend`, `npm run dev`), tap **Start talking to helper**, allow the microphone, and ask e.g. "WhatsApp pe video call kaise karun?". Logs: `adb logcat -s R17E_LIVE R17E_CTL R17E_MIC`.
+
+Emulator testing without a working mic (debug builds only): send a typed turn with
+`adb shell "am broadcast -a com.r17e.guide.DEBUG_SAY --es text 'turn on bluetooth'"`, or speech from a file:
+`say -o bt.wav --file-format=WAVE --data-format=LEI16@16000 "..."`, `adb push bt.wav /sdcard/Android/data/com.r17e.guide/files/`,
+then `adb shell "am broadcast -a com.r17e.guide.DEBUG_SAY --es audio bt.wav"`.
 
 ## CI and debug releases
 `.github/workflows/android-debug.yml` runs unit tests and builds `assembleDebug` on every push and PR and uploads the APK as an artifact (`r17e-android-debug-<sha>`).

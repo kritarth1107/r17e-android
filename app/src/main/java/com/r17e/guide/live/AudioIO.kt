@@ -33,8 +33,13 @@ class AudioIO(private val onMic: (ByteArray, Int) -> Unit) {
         rec.startRecording()
         thread(name = "r17e-mic", isDaemon = true) {
             val buf = ByteArray(3200) // 100 ms
+            var chunks = 0; var peak = 0
             while (running) {
                 val n = rec.read(buf, 0, buf.size)
+                if (com.r17e.guide.BuildConfig.DEBUG && n > 0) {
+                    for (i in 0 until n - 1 step 2) peak = maxOf(peak, kotlin.math.abs((buf[i].toInt() and 0xff) or (buf[i + 1].toInt() shl 8)))
+                    if (++chunks % 20 == 0) { android.util.Log.d("R17E_MIC", "2s peak=$peak"); peak = 0 }
+                }
                 if (n > 0 && !micMuted) onMic(buf, n)
             }
         }

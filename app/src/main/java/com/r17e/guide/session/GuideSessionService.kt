@@ -32,7 +32,9 @@ class GuideSessionService : Service() {
 
     /** Debug builds only: `adb shell am broadcast -a com.r17e.guide.DEBUG_SAY --es text "..."` sends a typed turn (emulator testing without a mic). */
     private val debugSay = object : android.content.BroadcastReceiver() {
-        override fun onReceive(c: Context, i: Intent) { i.getStringExtra("text")?.let { android.util.Log.i("R17E_CTL", "debug say (controller=${controller != null})"); if (offline != null) offline?.onHeard(listOf(it)) else controller?.sendText(it) } }
+        override fun onReceive(c: Context, i: Intent) {
+            i.getStringExtra("audio")?.let { controller?.injectAudio(java.io.File(getExternalFilesDir(null), it)); return }
+            i.getStringExtra("text")?.let { android.util.Log.i("R17E_CTL", "debug say (controller=${controller != null})"); if (offline != null) offline?.onHeard(listOf(it)) else controller?.sendText(it) } }
     }
 
     override fun onCreate() {

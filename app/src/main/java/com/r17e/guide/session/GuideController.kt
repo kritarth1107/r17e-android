@@ -39,6 +39,18 @@ class GuideController(
         }
     }
 
+    /** Debug: stream a raw PCM16 16 kHz mono file (WAV header skipped) as if it came from the mic, at real-time pace. */
+    fun injectAudio(file: java.io.File) = Thread {
+        val bytes = file.readBytes().let { if (it.size > 44 && String(it, 0, 4) == "RIFF") it.copyOfRange(44, it.size) else it }
+        Log.i(TAG, "injecting ${bytes.size} bytes from ${file.name}")
+        audio.micMuted = true
+        try {
+            val silence = ByteArray(3200)
+            bytes.toList().chunked(3200).forEach { c -> session?.sendAudio(c.toByteArray(), c.size); Thread.sleep(100) }
+            repeat(15) { session?.sendAudio(silence, silence.size); Thread.sleep(100) } // trailing silence ends the turn
+        } finally { audio.micMuted = false }
+    }.start()
+
     fun sendText(text: String) { Log.i(TAG, "sendText ready=${session?.ready}"); session?.sendText(text) }
 
     override fun onEvent(e: LiveEvent) {
