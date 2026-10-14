@@ -79,14 +79,30 @@ class HighlightOverlay(private val ctx: Context) {
             ring.alpha = (255 - 120 * pulse).toInt()
             c.drawRoundRect(r.left - pad, r.top - pad, r.right + pad, r.bottom + pad, 16 * d, 16 * d, ring)
             if (caption.isNotEmpty()) {
-                val tw = capText.measureText(caption)
-                val h = capText.textSize * 1.6f
-                val x = (r.centerX() - tw / 2).coerceIn(8 * d, width - tw - 8 * d)
+                // Wrap to the screen width (max 3 lines); long captions used to crash coerceIn with an empty range.
+                val maxW = (width - 40 * d).coerceAtLeast(1f)
+                val lines = wrap(caption, maxW)
+                val lineH = capText.textSize * 1.3f
+                val tw = lines.maxOf { capText.measureText(it) }
+                val h = lineH * lines.size + capText.textSize * 0.4f
+                val x = (r.centerX() - tw / 2).coerceIn(20 * d, maxOf(20 * d, width - tw - 20 * d))
                 var y = r.bottom + pad + 12 * d
-                if (y + h > height) y = r.top - pad - 12 * d - h
+                if (y + h > height) y = (r.top - pad - 12 * d - h).coerceAtLeast(0f)
                 c.drawRoundRect(x - 12 * d, y, x + tw + 12 * d, y + h, 12 * d, 12 * d, capBg)
-                c.drawText(caption, x, y + h * 0.7f, capText)
+                lines.forEachIndexed { i, l -> c.drawText(l, x, y + lineH * (i + 0.85f), capText) }
             }
+        }
+
+        private fun wrap(text: String, maxW: Float): List<String> {
+            val out = ArrayList<String>()
+            var rest = text.trim()
+            while (rest.isNotEmpty() && out.size < 3) {
+                var n = capText.breakText(rest, true, maxW, null).coerceAtLeast(1)
+                if (n < rest.length) rest.lastIndexOf(' ', n).takeIf { it > 0 }?.let { n = it }
+                out += rest.take(n).trim(); rest = rest.drop(n).trim()
+            }
+            if (rest.isNotEmpty()) out[out.lastIndex] = out.last().dropLast(1) + "…"
+            return out
         }
     }
 }

@@ -28,7 +28,8 @@ object SnapshotBuilder {
             val editable = n.isEditable
             val role = n.className?.toString()?.substringAfterLast('.') ?: "View"
             if (clickable || editable || txt != null || desc != null) {
-                val key = "${n.packageName}|$role|${vid ?: ""}|${if (vid == null) (txt ?: desc ?: path) else ""}"
+                // Shared resource ids (e.g. every Settings row is "title") must not collapse to one hash, so the label is always part of the key.
+                val key = "${n.packageName}|$role|${vid ?: ""}|${txt ?: desc ?: if (vid == null) path else ""}"
                 out += SnapNode(
                     id = stableId(key, out),
                     role = role, text = txt, desc = desc, viewId = vid,
