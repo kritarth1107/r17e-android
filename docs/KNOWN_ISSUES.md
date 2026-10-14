@@ -1,0 +1,14 @@
+# Known issues (v0.2.0-debug)
+- Emulator microphone records silence until macOS grants the emulator mic permission. Voice was tested by WAV injection.
+- The backend does not yet verify the Play Integrity verdict (the token is sent but not checked).
+- Family linking works by code only; there is no QR code yet.
+- Recipe matching uses title keywords, so unusual phrasing can fall back to the model.
+- The floating bubble can cover launcher icons. Drag it to another edge (its position is remembered).
+- Asked in Hindi about volume, the helper once suggested the hardware buttons. The prompt now prefers on-screen paths.
+- The backend gives the phone a full Live access token. This should be replaced with ephemeral or scoped tokens.
+- Offline voice (TTS/STT) depends on the device's installed language packs.
+- Safety alert `details.screen` is "?" for some apps (no class name available).
+- Debug builds print raw accessibility snapshots, which can include OTPs, to logcat (R17E_SNAP). Release builds must strip or redact this.
+- `lintDebug` reports InvalidFragmentVersionForActivityResult (fragment dependency < 1.3). CI doesn't run lint; fix by adding androidx.fragment ≥ 1.3.
+- After reinstalling over adb, Android can leave the accessibility service unbound. Toggle it off and on.
+- The offline safety queue is covered by unit tests; it has not yet been tested end to end on a device.
