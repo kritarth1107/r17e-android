@@ -6,6 +6,7 @@ import com.r17e.guide.backend.DeviceRegistry
 import com.r17e.guide.backend.LiveTokenProvider
 import com.r17e.guide.a11y.GuideAccessibilityService
 import com.r17e.guide.overlay.OverlayPointer
+import com.r17e.guide.recipes.RecipeBook
 import com.r17e.guide.session.GuideController
 import com.r17e.guide.session.Prompts
 import com.r17e.guide.session.ScreenTools
@@ -19,5 +20,7 @@ class R17eApp : Application() {
     fun newController(onState: (GuideController.State) -> Unit) =
         GuideController(liveTokens, screenTools(), Prompts.SYSTEM, onState)
 
-    private fun screenTools() = ScreenTools({ GuideAccessibilityService.instance?.current }, OverlayPointer)
+    val recipes by lazy { RecipeBook.parse(assets.open("recipes.json").bufferedReader().use { it.readText() }) }
+
+    private fun screenTools() = ScreenTools({ GuideAccessibilityService.instance?.current }, OverlayPointer, recipes = recipes)
 }

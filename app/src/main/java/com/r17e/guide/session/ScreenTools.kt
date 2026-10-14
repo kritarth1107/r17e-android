@@ -20,6 +20,7 @@ class ScreenTools(
     private val snapshot: () -> Snapshot?,
     private val pointer: Pointer,
     private val filter: (Snapshot) -> Snapshot = SafetyPolicy::filter,
+    private val recipes: com.r17e.guide.recipes.RecipeBook? = null,
 ) : ToolHandler {
     /** Last snapshot handed to the model; highlight ids are resolved against it, then against the live screen. */
     @Volatile private var lastSent: Snapshot? = null
@@ -32,6 +33,8 @@ class ScreenTools(
                 .put("caption", JSONObject().put("type", "STRING").put("description", "very short instruction shown next to the ring, in the user's language")),
             required = listOf("node_id")))
         .put(fn("clear_highlight", "Remove the ring from the screen.", JSONObject()))
+        .apply { if (recipes != null) put(fn("find_recipe", "Look up a known step-by-step guide for a common task (e.g. WhatsApp video call). Use its steps as hints; still point only at ids from get_screen.",
+            JSONObject().put("task", JSONObject().put("type", "STRING").put("description", "what the user wants to do, in their words")), required = listOf("task"))) }
 
     override fun handle(call: FunctionCall): JSONObject = when (call.name) {
         "get_screen" -> {
@@ -41,6 +44,10 @@ class ScreenTools(
         }
         "highlight_node" -> highlight(call.args.optString("node_id"), call.args.optString("caption").take(60))
         "clear_highlight" -> { pointer.clear(); JSONObject().put("ok", true) }
+        "find_recipe" -> recipes?.match(call.args.optString("task"))?.let { r ->
+            JSONObject().put("id", r.id).put("title", r.title["en"]).put("app", r.pkg)
+                .put("steps", JSONArray(r.steps.map { it.say["en"] }))
+        } ?: err("no_recipe")
         else -> err("unknown_tool ${call.name}")
     }
 

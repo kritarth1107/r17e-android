@@ -7,6 +7,8 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import com.r17e.guide.R17eApp
+import com.r17e.guide.offline.OfflineGuide
+import com.r17e.guide.overlay.OverlayPointer
 import com.r17e.guide.ui.MainActivity
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -14,6 +16,17 @@ import kotlinx.coroutines.flow.StateFlow
 /** Foreground (microphone) service that keeps a helper session alive while the user switches apps. */
 class GuideSessionService : Service() {
     private var controller: GuideController? = null
+    private var offline: OfflineGuide? = null
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+
+    private fun onState(st: GuideController.State) {
+        _state.value = st
+        main.post {
+            if (st == GuideController.State.OFFLINE && offline == null) {
+                offline = OfflineGuide(this, (application as R17eApp).recipes, OverlayPointer).also { it.start() }
+            } else if (st == GuideController.State.LISTENING) { offline?.stop(); offline = null }
+        }
+    }
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -22,7 +35,7 @@ class GuideSessionService : Service() {
         startInForeground()
         if (controller == null) {
             val app = application as R17eApp
-            controller = app.newController { _state.value = it }.also { it.start() }
+            controller = app.newController(::onState).also { it.start() }
         }
         return START_NOT_STICKY
     }
@@ -45,6 +58,7 @@ class GuideSessionService : Service() {
 
     override fun onDestroy() {
         controller?.stop(); controller = null
+        offline?.stop(); offline = null
         _state.value = GuideController.State.STOPPED
         super.onDestroy()
     }

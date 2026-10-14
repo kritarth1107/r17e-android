@@ -22,6 +22,7 @@ class ScreenToolsTest {
     @Test fun declaresOnlyGuideTools() {
         val names = ScreenTools({ snap }, Rec()).declarations.let { a -> (0 until a.length()).map { a.getJSONObject(it).getString("name") } }
         assertEquals(listOf("get_screen", "highlight_node", "clear_highlight"), names)
+        assertFalse(names.any { it.contains("tap") || it.contains("click") || it.contains("type") })
     }
 
     @Test fun getScreenThenHighlightValidId() {

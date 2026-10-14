@@ -1,0 +1,46 @@
+[
+  {
+    "id": "whatsapp_video_call",
+    "title": {"en": "Video call on WhatsApp", "hi": "व्हाट्सऐप पर वीडियो कॉल"},
+    "triggers": ["video call", "whatsapp call", "वीडियो कॉल", "video kol", "face call"],
+    "pkg": "com.whatsapp",
+    "steps": [
+      {"match": ["^Chats$", "^चैट$"], "say": {"en": "Tap Chats.", "hi": "चैट्स पर टैप कीजिए।"}},
+      {"match": ["^Search$", "^खोजें$"], "say": {"en": "Tap search and type the person's name.", "hi": "खोज पर टैप करके नाम लिखिए।"}},
+      {"match": ["^Video call$", "^वीडियो कॉल$"], "say": {"en": "Tap the camera button to start the video call.", "hi": "वीडियो कॉल के लिए कैमरा बटन दबाइए।"}}
+    ]
+  },
+  {
+    "id": "whatsapp_send_photo",
+    "title": {"en": "Send a photo on WhatsApp", "hi": "व्हाट्सऐप पर फोटो भेजें"},
+    "triggers": ["send photo", "photo bhejo", "फोटो भेज", "send picture"],
+    "pkg": "com.whatsapp",
+    "steps": [
+      {"match": ["^Chats$", "^चैट$"], "say": {"en": "Tap Chats.", "hi": "चैट्स पर टैप कीजिए।"}},
+      {"match": ["^Attach$", "^अटैच करें$"], "say": {"en": "Open the chat, then tap the pin to attach.", "hi": "चैट खोलकर पिन वाले बटन पर टैप कीजिए।"}},
+      {"match": ["^Gallery$", "^गैलरी$"], "say": {"en": "Tap Gallery.", "hi": "गैलरी पर टैप कीजिए।"}},
+      {"match": ["^Send$", "^भेजें$"], "say": {"en": "Choose the photo, then tap the green send button.", "hi": "फोटो चुनकर हरे भेजें बटन पर टैप कीजिए।"}}
+    ]
+  },
+  {
+    "id": "phone_call_contact",
+    "title": {"en": "Call someone", "hi": "किसी को फोन करें"},
+    "triggers": ["call", "phone karo", "फोन", "कॉल"],
+    "pkg": null,
+    "steps": [
+      {"match": ["^Contacts$", "^संपर्क$"], "say": {"en": "Tap Contacts.", "hi": "संपर्क पर टैप कीजिए।"}},
+      {"match": ["^Search contacts$", "^Search$"], "say": {"en": "Tap search and say or type the name.", "hi": "खोज पर टैप करके नाम लिखिए।"}},
+      {"match": ["^Call$", "^कॉल करें$"], "say": {"en": "Tap the green call button.", "hi": "हरे कॉल बटन पर टैप कीजिए।"}}
+    ]
+  },
+  {
+    "id": "volume_up",
+    "title": {"en": "Make the sound louder", "hi": "आवाज़ बढ़ाएं"},
+    "triggers": ["volume", "louder", "awaaz", "आवाज़", "sound"],
+    "pkg": "com.android.settings",
+    "steps": [
+      {"match": ["^Sound", "^ध्वनि"], "say": {"en": "In Settings, tap Sound.", "hi": "सेटिंग्स में साउंड पर टैप कीजिए।"}},
+      {"match": ["^Media volume", "^Ring", "मीडिया"], "say": {"en": "Slide this bar to the right to make it louder.", "hi": "इस पट्टी को दाईं ओर खिसकाइए।"}}
+    ]
+  }
+]
