@@ -20,13 +20,50 @@ class RecipeBook(val recipes: List<Recipe>) {
     /** Best recipe for a spoken request, by trigger phrase overlap; null if nothing fits. */
     fun match(utterance: String): Recipe? {
         val u = utterance.lowercase()
-        return recipes.map { r -> r to r.triggers.filter { u.contains(it.lowercase()) }.maxOfOrNull { it.length } }
-            .filter { it.second != null }.maxByOrNull { it.second!! }?.first
+        recipes.map { r -> r to r.triggers.filter { u.contains(it.lowercase()) }.maxOfOrNull { it.length } }
+            .filter { it.second != null }.maxByOrNull { it.second!! }?.first?.let { return it }
+        // Fallback for saved recipes without curated triggers: word overlap with the title.
+        val words = words(u)
+        if (words.isEmpty()) return null
+        return recipes.map { r -> r to (r.title.values.flatMap { words(it.lowercase()) }.toSet() intersect words).size }
+            .filter { it.second >= 2 }.maxByOrNull { it.second }?.first
     }
+
+    private fun words(s: String) = s.split(Regex("""[^\p{L}\p{N}]+""")).filter { it.length >= 3 && it !in STOP }.toSet()
+
+    /** Recipes from this book first, then [fallback]'s recipes whose ids aren't already present. */
+    operator fun plus(fallback: RecipeBook) = RecipeBook(recipes + fallback.recipes.filter { f -> recipes.none { it.id == f.id } })
 
     fun byId(id: String) = recipes.firstOrNull { it.id == id }
 
     companion object {
+        private val STOP = setOf("the", "and", "how", "for", "kaise", "karna", "karun", "hai", "mujhe", "want", "with", "use", "करना", "कैसे")
+
+        /**
+         * Parses GET /v1/recipes ({recipes:[{id,title,description,appPackage,steps:[{instruction,target?}]}]}).
+         * A step's target is matched literally against node text/description.
+         */
+        fun parseRemote(json: String): RecipeBook {
+            val arr = org.json.JSONObject(json).optJSONArray("recipes") ?: JSONArray()
+            return RecipeBook((0 until arr.length()).mapNotNull { i ->
+                val o = arr.getJSONObject(i)
+                val steps = o.optJSONArray("steps") ?: return@mapNotNull null
+                val title = o.optString("title").ifEmpty { return@mapNotNull null }
+                Recipe(
+                    id = "saved:" + o.getString("id"),
+                    title = mapOf("en" to title, "hi" to title),
+                    triggers = listOf(title.lowercase()),
+                    pkg = o.optString("appPackage").takeIf { it.isNotEmpty() && it != "null" },
+                    steps = (0 until steps.length()).map { j ->
+                        val st = steps.getJSONObject(j)
+                        val instr = st.optString("instruction")
+                        val target = st.optString("target").takeIf { it.isNotBlank() && it != "null" }
+                        Step(listOfNotNull(target?.let { Regex(Regex.escape(it.trim()), RegexOption.IGNORE_CASE) }), mapOf("en" to instr, "hi" to instr))
+                    },
+                )
+            })
+        }
+
         fun parse(json: String) = RecipeBook(JSONArray(json).let { a -> (0 until a.length()).map { recipe(a.getJSONObject(it)) } })
 
         private fun recipe(o: JSONObject) = Recipe(

@@ -23,6 +23,7 @@ class BackendClient(
     fun interface Http {
         /** Returns (status, body). */
         fun post(url: String, json: String, bearer: String?): Pair<Int, String>
+        fun get(url: String, bearer: String?): Pair<Int, String> = throw UnsupportedOperationException("GET")
     }
 
     /** POST /v1/devices/register with this install's public key (base64 SPKI). Returns deviceId. */
@@ -54,6 +55,13 @@ class BackendClient(
         call("/v1/sessions/$sessionId/end", JSONObject().apply { summary?.let { put("summary", it.take(4000)) } }, accessToken)
     }
 
+    /** GET /v1/recipes: this elder's saved recipes (own and caregiver-pushed). Returns raw JSON. */
+    fun recipesJson(accessToken: String): String {
+        val (code, text) = http.get(baseUrl.trimEnd('/') + "/v1/recipes", accessToken)
+        if (code !in 200..299) throw BackendException(code, runCatching { JSONObject(text).optString("error") }.getOrNull())
+        return text
+    }
+
     private fun tokens(o: JSONObject) =
         Tokens(o.getString("accessToken"), o.getString("refreshToken"), now() + o.optLong("expiresIn", 900) * 1000)
 
@@ -66,14 +74,17 @@ class BackendClient(
 }
 
 class UrlConnectionHttp(private val timeoutMs: Int = 10_000) : BackendClient.Http {
-    override fun post(url: String, json: String, bearer: String?): Pair<Int, String> {
+    override fun get(url: String, bearer: String?) = exec(url, "GET", null, bearer)
+    override fun post(url: String, json: String, bearer: String?) = exec(url, "POST", json, bearer)
+
+    private fun exec(url: String, method: String, json: String?, bearer: String?): Pair<Int, String> {
         val c = URL(url).openConnection() as HttpURLConnection
         try {
-            c.requestMethod = "POST"; c.doOutput = true
+            c.requestMethod = method; c.doOutput = json != null
             c.connectTimeout = timeoutMs; c.readTimeout = timeoutMs
             c.setRequestProperty("Content-Type", "application/json")
             bearer?.let { c.setRequestProperty("Authorization", "Bearer $it") }
-            c.outputStream.use { it.write(json.toByteArray()) }
+            json?.let { j -> c.outputStream.use { it.write(j.toByteArray()) } }
             val code = c.responseCode
             val stream = if (code in 200..299) c.inputStream else c.errorStream
             return code to (stream?.bufferedReader()?.use { it.readText() } ?: "")

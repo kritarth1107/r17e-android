@@ -14,6 +14,7 @@ class GuideController(
     private val tools: ToolHandler,
     private val systemPrompt: String,
     private val onState: (State) -> Unit,
+    private val beforeConnect: () -> Unit = {},
 ) : LiveSession.Listener {
     enum class State { CONNECTING, LISTENING, OFFLINE, STOPPED }
 
@@ -27,6 +28,7 @@ class GuideController(
     fun start() = io.execute {
         stopped = false
         onState(State.CONNECTING)
+        runCatching(beforeConnect)
         try {
             val creds = tokens.get(forceNew = true)
             sessionId = creds.sessionId

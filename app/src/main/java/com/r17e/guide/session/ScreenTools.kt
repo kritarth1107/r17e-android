@@ -20,7 +20,7 @@ class ScreenTools(
     private val snapshot: () -> Snapshot?,
     private val pointer: Pointer,
     private val filter: (Snapshot) -> Snapshot = SafetyPolicy::filter,
-    private val recipes: com.r17e.guide.recipes.RecipeBook? = null,
+    private val recipes: (() -> com.r17e.guide.recipes.RecipeBook)? = null,
 ) : ToolHandler {
     /** Last snapshot handed to the model; highlight ids are resolved against it, then against the live screen. */
     @Volatile private var lastSent: Snapshot? = null
@@ -44,7 +44,7 @@ class ScreenTools(
         }
         "highlight_node" -> highlight(call.args.optString("node_id"), call.args.optString("caption").take(60))
         "clear_highlight" -> { pointer.clear(); JSONObject().put("ok", true) }
-        "find_recipe" -> recipes?.match(call.args.optString("task"))?.let { r ->
+        "find_recipe" -> recipes?.invoke()?.match(call.args.optString("task"))?.let { r ->
             JSONObject().put("id", r.id).put("title", r.title["en"]).put("app", r.pkg)
                 .put("steps", JSONArray(r.steps.map { it.say["en"] }))
         } ?: err("no_recipe")
