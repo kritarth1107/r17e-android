@@ -33,3 +33,11 @@ Watch snapshots:
 adb logcat -s R17E_SNAP R17E
 ```
 Tap the blue **?** bubble → pick a node → a pulsing ring appears over it.
+
+## CI and debug releases
+`.github/workflows/android-debug.yml` builds `assembleDebug` on every push and PR and uploads the APK as an artifact (`r17e-android-debug-<sha>`).
+Pushing a tag like `v0.1.0-debug` also publishes a GitHub **prerelease** with `r17e-android-<tag>-debug.apk`.
+
+Debug APKs from CI and local builds share one signature: CI decodes the `DEBUG_KEYSTORE_BASE64` secret, and locally set
+`r17e.debugKeystore=/path/to/r17e-debug.keystore` in `~/.gradle/gradle.properties`. Without it, the default Android debug key is used.
+The keystore is never committed.
