@@ -11,9 +11,11 @@ Guide-only voice helper for elders: it shows where to tap and never taps for you
 - **Family link:** enter a caregiver's invite code (`POST /v1/family/link`) in onboarding or on Home.
 - **Safety alerts to family** (`POST /v1/safety-events`): scam message, PIN/OTP screen, payment screen and remote-access app.
   Alerts carry a fixed message and metadata only; screen text and OTPs are never sent. They are queued while offline and de-duplicated for 10 minutes.
+- Privacy: debug screen logs (R17E_SNAP) are redacted the same way as the model payload; release builds don't log screen content, tool calls or transcripts.
+- CI now runs lintDebug.
 - Fixed: the false "Helper is OFF" on Home.
 
 Verified on prod: voice in Hindi and English, resumption after a drop, family link, and safety alerts (metadata only, no OTP present).
 See docs/TESTING.md and docs/KNOWN_ISSUES.md.
 
-APK SHA-256: 5481f3ab529c05cc5a4bb48e7a800d40689747240403e7e726b4953ee58f10e2
+APK SHA-256: 18777d7eb9316bd862f3f0f493f362c08bee7813ede1cc93dcbb7be02f6edb66

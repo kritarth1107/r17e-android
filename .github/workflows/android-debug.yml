@@ -44,6 +44,9 @@ jobs:
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
+      - name: Lint
+        run: ./gradlew lintDebug --stacktrace
+
       - name: Short SHA
         id: sha
         run: echo "short=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"

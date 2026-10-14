@@ -1,5 +1,7 @@
 package com.r17e.guide.session
 
+import com.r17e.guide.BuildConfig
+
 import android.os.SystemClock
 import android.util.Log
 import com.r17e.guide.backend.BackendException
@@ -105,18 +107,18 @@ class GuideController(
                     HelperState.set(Phase.LISTENING)
             }, 800, TimeUnit.MILLISECONDS)
             is LiveEvent.ToolCalls -> {
-                e.calls.forEach { Log.i(TAG, "tool ${it.name} ${it.args}") }
+                if (BuildConfig.DEBUG) e.calls.forEach { Log.i(TAG, "tool ${it.name} ${it.args}") }
                 val replies = e.calls.map { c ->
                     c to runCatching { tools.handle(c) }.getOrElse { org.json.JSONObject().put("error", it.message ?: "failed") }
                 }
                 replies.forEach { (c, r) -> if (c.name == "highlight_node" && r.optBoolean("ok")) HelperState.set(HelperState.status.value.phase, c.args.optString("caption")) }
                 if (com.r17e.guide.BuildConfig.DEBUG) replies.forEach { (c, r) ->
-                    val j = r.toString(); Log.i(TAG, "tool reply ${c.name}: " + if (j.length > 600) j.take(300) + " ... " + j.takeLast(300) else j)
+                    if (BuildConfig.DEBUG) { val j = r.toString(); Log.i(TAG, "tool reply ${c.name}: " + if (j.length > 600) j.take(300) + " ... " + j.takeLast(300) else j) }
                 }
                 session?.send(LiveProtocol.toolResponse(replies))
             }
             is LiveEvent.ToolCancel -> tools.cancel(e.ids)
-            is LiveEvent.Transcript -> Log.i(TAG, (if (e.fromModel) "model: " else "user: ") + e.text)
+            is LiveEvent.Transcript -> if (BuildConfig.DEBUG) Log.i(TAG, (if (e.fromModel) "model: " else "user: ") + e.text)
             is LiveEvent.Resumption -> if (e.resumable && e.handle != null) resumeHandle = e.handle
             is LiveEvent.GoAway -> io.execute {
                 Log.i(TAG, "goAway timeLeft=${e.timeLeft}; resuming=${resumeHandle != null}")

@@ -8,7 +8,5 @@
 - The backend gives the phone a full Live access token. This should be replaced with ephemeral or scoped tokens.
 - Offline voice (TTS/STT) depends on the device's installed language packs.
 - Safety alert `details.screen` is "?" for some apps (no class name available).
-- Debug builds print raw accessibility snapshots, which can include OTPs, to logcat (R17E_SNAP). Release builds must strip or redact this.
-- `lintDebug` reports InvalidFragmentVersionForActivityResult (fragment dependency < 1.3). CI doesn't run lint; fix by adding androidx.fragment ≥ 1.3.
 - After reinstalling over adb, Android can leave the accessibility service unbound. Toggle it off and on.
 - The offline safety queue is covered by unit tests; it has not yet been tested end to end on a device.

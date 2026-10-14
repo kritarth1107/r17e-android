@@ -66,14 +66,17 @@ class GuideAccessibilityService : AccessibilityService() {
         val dm = resources.displayMetrics
         val snap = SnapshotBuilder.build(root, lastScreen, dm.widthPixels, dm.heightPixels)
         if (snap.pkg == packageName) return
-        val json = snap.toJson()
         current = snap
         (application as com.r17e.guide.R17eApp).onSafetySnapshot(snap)
         highlight.onSnapshot(snap)
         bubble.onSnapshot(snap)
-        if (json != lastJson) {
-            lastJson = json
-            json.chunked(3500).forEach { Log.d(SNAP_TAG, it) }
+        if (com.r17e.guide.BuildConfig.DEBUG) {
+            // Debug only, and redacted exactly like the model payload (no OTPs/PINs/passwords).
+            val json = com.r17e.guide.safety.SafetyPolicy.filter(snap).toJson()
+            if (json != lastJson) {
+                lastJson = json
+                json.chunked(3500).forEach { Log.d(SNAP_TAG, it) }
+            }
         }
     }
 

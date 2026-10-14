@@ -68,7 +68,7 @@ class OfflineGuide(private val ctx: Context, private val book: RecipeBook, priva
     /** Speech results (or a typed debug turn): pick a recipe and start following the screen. */
     fun onHeard(heard: List<String>) {
         val recipe = heard.firstNotNullOfOrNull { book.match(it) }
-        android.util.Log.i("R17E_OFFLINE", "heard=$heard recipe=${recipe?.id}")
+        if (com.r17e.guide.BuildConfig.DEBUG) android.util.Log.i("R17E_OFFLINE", "heard=$heard recipe=${recipe?.id}")
         if (recipe == null) { say(s("offline_sorry")); main.postDelayed({ listen() }, 3000); return }
         stt?.cancel()
         runner = RecipeRunner(recipe)
