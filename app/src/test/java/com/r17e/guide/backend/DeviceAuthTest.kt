@@ -84,3 +84,28 @@ class DeviceAuthTest {
         assertEquals("dev-install-1234", store.deviceId)
     }
 }
+
+class DeviceAuthIntegrityTest {
+    @Test fun sendsIntegrityTokenWithBoundNonceWhenAvailable() {
+        var sent: JSONObject? = null; var nonceSeen = ""
+        val http = BackendClient.Http { url, json, _ ->
+            if (url.endsWith("/register")) { sent = JSONObject(json); 201 to """{"deviceId":"d"}""" } else 500 to "{}"
+        }
+        val store = object : AuthStore { override var installId: String? = null; override var deviceId: String? = null; override var refreshToken: String? = null }
+        val signer = object : DeviceSigner { override fun publicKeyB64() = "PK"; override fun sign(message: String) = "s"; override fun reset() {} }
+        DeviceAuth(BackendClient("http://x", http), signer, store, null, null, { "install-abcdef" },
+            integrity = IntegrityProvider { nonceSeen = it; "itok" }).ensureRegistered()
+        assertEquals("itok", sent!!.getString("integrityToken"))
+        assertEquals(IntegrityProvider.nonceFor("install-abcdef", "PK"), nonceSeen)
+        assertFalse(nonceSeen.contains("=") || nonceSeen.contains("+") || nonceSeen.contains("/"))
+    }
+
+    @Test fun omitsTokenWhenUnconfigured() {
+        var sent: JSONObject? = null
+        val http = BackendClient.Http { _, json, _ -> sent = JSONObject(json); 201 to """{"deviceId":"d"}""" }
+        val store = object : AuthStore { override var installId: String? = null; override var deviceId: String? = null; override var refreshToken: String? = null }
+        val signer = object : DeviceSigner { override fun publicKeyB64() = "PK"; override fun sign(message: String) = "s"; override fun reset() {} }
+        DeviceAuth(BackendClient("http://x", http), signer, store, null, null).ensureRegistered()
+        assertFalse(sent!!.has("integrityToken"))
+    }
+}

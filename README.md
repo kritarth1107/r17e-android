@@ -12,6 +12,11 @@ R17E guide app: a voice helper for older people in India (Kotlin + Jetpack Compo
 5. **Safety** (`safety/SafetyPolicy`): redacts password/OTP/PIN/CVV fields and long digit runs before snapshots leave the phone; flags PIN-entry, payment, scam-text and remote-access-app screens; refuses to point at secret fields or PIN keypad digits; asks for spoken confirmation before Pay.
 6. **Recipes + offline** (`recipes/`, `offline/`): `assets/recipes.json` has English/Hindi step guides. If Live can't start, `OfflineGuide` uses on-device speech recognition + TTS to pick a recipe and points at each step as the screen changes.
 
+### Play Integrity
+Registration sends a classic Play Integrity token (nonce = base64url(SHA-256(`installId:publicKey`))) when the GCP
+project **number** is set: `r17e.gcpProjectNumber=123456789012` in `~/.gradle/gradle.properties` or `-P`. Without it the
+build warns and registration skips the token (the backend currently records `not_checked`).
+
 ### Backend URL
 Defaults to `http://10.0.2.2:8080` (emulator → Mac). For a USB phone: `adb reverse tcp:8080 tcp:8080` and build with
 `./gradlew assembleDebug -Pr17e.backendUrl=http://localhost:8080`. Cleartext is allowed only for those local hosts.

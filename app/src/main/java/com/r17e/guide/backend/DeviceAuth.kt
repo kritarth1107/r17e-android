@@ -29,6 +29,7 @@ class DeviceAuth(
     private val appVersion: String?,
     private val newInstallId: () -> String = { java.util.UUID.randomUUID().toString() },
     private val now: () -> Long = System::currentTimeMillis,
+    private val integrity: IntegrityProvider = IntegrityProvider.NONE,
 ) {
     private var access: Tokens? = null
 
@@ -65,13 +66,19 @@ class DeviceAuth(
 
     private fun register(): String {
         val install = store.installId ?: newInstallId().also { store.installId = it }
-        val id = try { client.register(install, signer.publicKeyB64(), deviceModel, appVersion) } catch (e: BackendException) {
+        val id = try { registerWith(install) } catch (e: BackendException) {
             if (e.code != 409) throw e
             // installId is bound to a key we no longer hold: start over as a new install.
             signer.reset(); store.installId = newInstallId()
-            client.register(store.installId!!, signer.publicKeyB64(), deviceModel, appVersion)
+            registerWith(store.installId!!)
         }
         store.deviceId = id; store.refreshToken = null
         return id
+    }
+
+    private fun registerWith(install: String): String {
+        val pk = signer.publicKeyB64()
+        val token = integrity.token(IntegrityProvider.nonceFor(install, pk))
+        return client.register(install, pk, deviceModel, appVersion, token)
     }
 }

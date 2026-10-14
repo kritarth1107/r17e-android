@@ -4,6 +4,7 @@ import android.app.Application
 import com.r17e.guide.backend.BackendClient
 import com.r17e.guide.backend.DeviceAuth
 import com.r17e.guide.backend.KeystoreSigner
+import com.r17e.guide.backend.PlayIntegrity
 import com.r17e.guide.backend.PrefsAuthStore
 import com.r17e.guide.backend.LiveTokenProvider
 import com.r17e.guide.a11y.GuideAccessibilityService
@@ -18,8 +19,10 @@ import com.r17e.guide.session.ScreenTools
 class R17eApp : Application() {
     val backend by lazy { BackendClient(BuildConfig.BACKEND_URL) }
     val auth by lazy {
-        DeviceAuth(backend, KeystoreSigner(), PrefsAuthStore(this), "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}", BuildConfig.VERSION_NAME)
+        DeviceAuth(backend, KeystoreSigner(), PrefsAuthStore(this), "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}", BuildConfig.VERSION_NAME,
+            integrity = playIntegrity)
     }
+    val playIntegrity by lazy { PlayIntegrity(this, BuildConfig.GCP_PROJECT_NUMBER) }
     val liveTokens by lazy { LiveTokenProvider(backend, auth::accessToken, auth::invalidate) }
 
     fun newController(onState: (GuideController.State) -> Unit) =

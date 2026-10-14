@@ -27,11 +27,12 @@ class BackendClient(
     }
 
     /** POST /v1/devices/register with this install's public key (base64 SPKI). Returns deviceId. */
-    fun register(installId: String, publicKey: String, model: String?, appVersion: String?): String {
+    fun register(installId: String, publicKey: String, model: String?, appVersion: String?, integrityToken: String? = null): String {
         val body = JSONObject().apply {
             put("installId", installId); put("platform", "android"); put("publicKey", publicKey)
             model?.let { put("model", it.take(128)) }
             appVersion?.let { put("appVersion", it.take(64)) }
+            integrityToken?.let { put("integrityToken", it) }
         }
         return call("/v1/devices/register", body, null).getString("deviceId")
     }
