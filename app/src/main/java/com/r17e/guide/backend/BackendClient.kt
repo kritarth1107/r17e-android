@@ -31,6 +31,10 @@ class BackendClient(
         return Registration(o.getString("deviceId"), o.getString("deviceToken"))
     }
 
+    /** POST /v1/live/session with the device token. */
+    fun liveSession(deviceToken: String): LiveCredentials =
+        LiveCredentials.fromJson(call("/v1/live/session", JSONObject(), deviceToken))
+
     internal fun call(path: String, body: JSONObject, bearer: String?): JSONObject {
         val (code, text) = http.post(baseUrl.trimEnd('/') + path, body.toString(), bearer)
         val o = runCatching { JSONObject(text) }.getOrNull()
