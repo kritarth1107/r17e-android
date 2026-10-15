@@ -13,8 +13,8 @@ android {
         applicationId = "com.r17e.guide"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0-dev"
         // Defaults to the prod backend. Local: -Pr17e.backendUrl=http://10.0.2.2:8080 (emulator) or, for a USB phone,
         // `adb reverse tcp:8080 tcp:8080` and -Pr17e.backendUrl=http://localhost:8080
         // Play Integrity: GCP project number (not id). Set r17e.gcpProjectNumber in ~/.gradle/gradle.properties or -P.

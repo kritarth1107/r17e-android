@@ -34,12 +34,40 @@ class GuideSessionService : Service() {
     private val debugSay = object : android.content.BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
             if (i.getBooleanExtra("drop", false)) { controller?.debugDropConnection(); return }
+            if (i.getBooleanExtra("offline_retry", false)) { controller?.retryFromOffline("debug"); return }
             i.getStringExtra("audio")?.let { controller?.injectAudio(java.io.File(getExternalFilesDir(null), it)); return }
             i.getStringExtra("text")?.let { android.util.Log.i("R17E_CTL", "debug say (controller=${controller != null})"); if (offline != null) offline?.onHeard(listOf(it)) else controller?.sendText(it) } }
     }
 
+    private val net = object : android.net.ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: android.net.Network) { controller?.networkAvailable() }
+    }
+    private var tts: android.speech.tts.TextToSpeech? = null
+
+    /** Speak a short scam warning by itself (rate-limited by the caller). Uses the live voice when connected, else on-device TTS. */
+    fun warnScam() {
+        val lang = (application as R17eApp).prefs.lang
+        val c = controller
+        if (c != null && c.isLive && offline == null) {
+            c.sendText("[Safety notice from the phone, not from the user] The screen now shows signs of a scam " +
+                "(for example KYC expiry, account block, prize, or a request for an OTP/PIN). Without waiting for a question, " +
+                "in one or two short calm sentences in ${lang.promptName}, warn the user not to share any OTP or PIN, not to send money, " +
+                "and to ask their family first. Do not highlight anything.")
+        } else {
+            val text = com.r17e.guide.i18n.S.get(lang, "scam_warn")
+            val t = tts
+            if (t != null) t.speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "scam")
+            else tts = android.speech.tts.TextToSpeech(this) { ok ->
+                if (ok == android.speech.tts.TextToSpeech.SUCCESS) tts?.run { language = java.util.Locale.forLanguageTag(lang.ttsTag); speak(text, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "scam") }
+            }
+        }
+        android.util.Log.i("R17E_SAFETY", "spoken scam warning (live=${c?.isLive == true && offline == null})")
+    }
+
     override fun onCreate() {
         super.onCreate()
+        instance = this
+        runCatching { getSystemService(android.net.ConnectivityManager::class.java).registerDefaultNetworkCallback(net) }
         if (com.r17e.guide.BuildConfig.DEBUG) {
             androidx.core.content.ContextCompat.registerReceiver(this, debugSay,
                 android.content.IntentFilter("com.r17e.guide.DEBUG_SAY"), androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
@@ -52,7 +80,8 @@ class GuideSessionService : Service() {
         if (controller == null) {
             HelperState.set(Phase.CONNECTING, null)
             val app = application as R17eApp
-            controller = app.newController(::onState).also { it.start() }
+            app.prefs.stoppedIdle = false
+            controller = app.newController(::onState) { main.post { app.prefs.stoppedIdle = true; stopSelf() } }.also { it.start() }
         }
         return START_NOT_STICKY
     }
@@ -75,6 +104,9 @@ class GuideSessionService : Service() {
     }
 
     override fun onDestroy() {
+        instance = null
+        runCatching { getSystemService(android.net.ConnectivityManager::class.java).unregisterNetworkCallback(net) }
+        tts?.shutdown(); tts = null
         if (com.r17e.guide.BuildConfig.DEBUG) runCatching { unregisterReceiver(debugSay) }
         controller?.stop(); controller = null
         offline?.stop(); offline = null
@@ -89,6 +121,7 @@ class GuideSessionService : Service() {
         private const val ACTION_STOP = "com.r17e.guide.STOP"
         private val _state = MutableStateFlow(GuideController.State.STOPPED)
         val state: StateFlow<GuideController.State> = _state
+        @Volatile var instance: GuideSessionService? = null; private set
 
         fun start(ctx: Context) = ctx.startForegroundService(Intent(ctx, GuideSessionService::class.java))
         fun stop(ctx: Context) = ctx.stopService(Intent(ctx, GuideSessionService::class.java))

@@ -29,7 +29,7 @@ class AudioIO(private val onMic: (ByteArray, Int) -> Unit) {
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
             .setAudioFormat(AudioFormat.Builder().setSampleRate(LiveProtocol.OUTPUT_RATE)
                 .setChannelMask(AudioFormat.CHANNEL_OUT_MONO).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
-            .setBufferSizeInBytes(outMin * 4).setTransferMode(AudioTrack.MODE_STREAM).build().also { it.play() }
+            .setBufferSizeInBytes(outMin * 4).setTransferMode(AudioTrack.MODE_STREAM).build().also { it.play(); startPlayer(it) }
         rec.startRecording()
         thread(name = "r17e-mic", isDaemon = true) {
             val buf = ByteArray(3200) // 100 ms
@@ -45,13 +45,44 @@ class AudioIO(private val onMic: (ByteArray, Int) -> Unit) {
         }
     }
 
-    fun play(pcm: ByteArray) { track?.write(pcm, 0, pcm.size) }
+    /**
+     * Queue model audio. Never blocks: the websocket reader must stay free so that "interrupted" and tool calls
+     * arrive immediately (a blocking AudioTrack.write here used to delay barge-in).
+     */
+    fun play(pcm: ByteArray) { queuedBytes.addAndGet(pcm.size.toLong()); playQueue.offer(pcm) }
+
+    private val playQueue = java.util.concurrent.LinkedBlockingQueue<ByteArray>()
+    private val queuedBytes = java.util.concurrent.atomic.AtomicLong()
+    @Volatile private var ducked = false
+
+    /** Lower the helper's voice while the user may be talking over it; [duck] false restores it. */
+    fun duck(duck: Boolean) { if (ducked != duck) { ducked = duck; runCatching { track?.setVolume(if (duck) 0.25f else 1f) } } }
+
+    private fun startPlayer(t: AudioTrack) = thread(name = "r17e-play", isDaemon = true) {
+        while (running) {
+            val pcm = playQueue.poll(200, java.util.concurrent.TimeUnit.MILLISECONDS) ?: continue
+            queuedBytes.addAndGet(-pcm.size.toLong())
+            if (track !== t) break
+            t.write(pcm, 0, pcm.size); writtenFrames += pcm.size / 2
+        }
+    }
 
     /** Barge-in: drop whatever the model was still saying. */
-    fun flushPlayback() { track?.run { pause(); flush(); play() } }
+    /** Returns roughly how much queued audio (ms) was dropped. */
+    fun isPlaying(): Boolean = queuedBytes.get() > 0 || (track?.let { (writtenFrames - (it.playbackHeadPosition.toLong() and 0xffffffffL)) > 0 } ?: false)
+
+    fun flushPlayback(): Long {
+        val t = track ?: return 0
+        val queued = queuedBytes.getAndSet(0) / 2; playQueue.clear()
+        val written = writtenFrames; val played = t.playbackHeadPosition.toLong() and 0xffffffffL
+        t.pause(); t.flush(); t.play(); writtenFrames = 0; duck(false)
+        return (((written - played).coerceAtLeast(0) + queued) * 1000) / LiveProtocol.OUTPUT_RATE
+    }
+    @Volatile private var writtenFrames = 0L
 
     fun stop() {
         running = false
+        playQueue.clear(); queuedBytes.set(0); ducked = false
         record?.run { runCatching { stop() }; release() }; record = null
         track?.run { runCatching { stop() }; release() }; track = null
     }

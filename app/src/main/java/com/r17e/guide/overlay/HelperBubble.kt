@@ -34,7 +34,7 @@ class HelperBubble(
     private var ids: List<String> = emptyList()
     private val bubbleLp = params(WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT).apply {
         gravity = Gravity.TOP or Gravity.START
-        x = prefs.getInt("x", 0); y = prefs.getInt("y", (ctx.resources.displayMetrics.heightPixels * 0.55f).toInt())
+        x = prefs.getInt("x", ctx.resources.displayMetrics.widthPixels); y = prefs.getInt("y", (ctx.resources.displayMetrics.heightPixels * 0.62f).toInt())
     }
 
     private fun params(w: Int, h: Int) = WindowManager.LayoutParams(
@@ -69,6 +69,8 @@ class HelperBubble(
         }
         b.setOnClickListener { onTap() } // reached by TalkBack double-tap
         wm.addView(b, bubbleLp); bubble = b
+        b.post { snapToEdge(b) } // keeps a remembered/default spot on screen after rotation or a new display size
+        if (suppressed) b.visibility = View.GONE
         render(com.r17e.guide.session.HelperState.status.value.phase, label)
     }
 
@@ -105,6 +107,14 @@ class HelperBubble(
         bubbleLp.y = bubbleLp.y.coerceIn((80 * d).toInt(), h - v.height - (120 * d).toInt())
         runCatching { wm.updateViewLayout(v, bubbleLp) }
         prefs.edit().putInt("x", bubbleLp.x).putInt("y", bubbleLp.y).apply()
+    }
+
+    private var suppressed = false
+    /** Hide the bubble while our own app is in front (it has its own controls). */
+    fun setSuppressed(v: Boolean) {
+        if (suppressed == v) return
+        suppressed = v
+        bubble?.visibility = if (v) View.GONE else View.VISIBLE
     }
 
     fun hide() {

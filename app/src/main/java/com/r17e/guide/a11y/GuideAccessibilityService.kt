@@ -34,6 +34,7 @@ class GuideAccessibilityService : AccessibilityService() {
 
     override fun onServiceConnected() {
         instance = this
+        A11yStatus.setConnected(true)
         highlight = HighlightOverlay(this)
         bubble = HelperBubble(this, highlight, { current }) {
             if (HelperState.status.value.phase == Phase.STOPPED) GuideSessionService.start(this) else GuideSessionService.stop(this)
@@ -51,7 +52,13 @@ class GuideAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString()
-        if (pkg == packageName) return // ignore our own overlays
+        if (pkg == packageName) {
+            // Our own app is in front: it has its own big button, so the bubble would only cover the heading.
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && ::bubble.isInitialized) bubble.setSuppressed(true)
+            return // ignore our own overlays
+        }
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && ::bubble.isInitialized && pkg != null &&
+            pkg != "com.android.systemui") bubble.setSuppressed(false)
         handler.removeCallbacks(snapshotRunnable)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             event.className?.toString()?.let { lastScreen = it.substringAfterLast('.') }
@@ -95,7 +102,9 @@ class GuideAccessibilityService : AccessibilityService() {
         scope.cancel()
         if (::bubble.isInitialized) bubble.hide()
         if (::highlight.isInitialized) highlight.hide()
-        instance = null
+        // On a rebind Android can connect the new instance before destroying the old one: only clear if we are current.
+        if (instance === this) { instance = null; A11yStatus.setConnected(false) }
+        Log.i(TAG, "service destroyed (current=${instance == null})")
         super.onDestroy()
     }
 

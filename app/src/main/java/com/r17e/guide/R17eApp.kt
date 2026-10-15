@@ -26,8 +26,9 @@ class R17eApp : Application() {
     val playIntegrity by lazy { PlayIntegrity(this, BuildConfig.GCP_PROJECT_NUMBER) }
     val liveTokens by lazy { LiveTokenProvider(backend, auth::accessToken, auth::invalidate) }
 
-    fun newController(onState: (GuideController.State) -> Unit) =
-        GuideController(liveTokens, screenTools(), Prompts.system(prefs.lang), onState, beforeConnect = { recipeRepo.refresh(); runCatching { safetyReporter.flush() } })
+    fun newController(onState: (GuideController.State) -> Unit, onIdle: () -> Unit = {}) =
+        GuideController(liveTokens, screenTools(), Prompts.system(prefs.lang), onState,
+            beforeConnect = { recipeRepo.refresh(); runCatching { safetyReporter.flush() } }, onIdle = onIdle)
 
     val recipeRepo by lazy {
         RecipeRepository(
@@ -43,10 +44,15 @@ class R17eApp : Application() {
 
     /** Safety alerts go to the family only after the elder linked a family (consent); metadata only. */
     fun onSafetySnapshot(snap: com.r17e.guide.a11y.Snapshot) {
-        if (prefs.familyGroup == null) return
         val f = com.r17e.guide.safety.SafetyPolicy.filter(snap)
-        if (f.flags.isNotEmpty()) bg.execute { runCatching { safetyReporter.onSnapshot(f) } }
+        if (f.flags.isEmpty()) return
+        // While the helper is running, speak up about a scam screen without waiting to be asked (rate-limited).
+        val svc = com.r17e.guide.session.GuideSessionService.instance
+        if (svc != null && com.r17e.guide.safety.SafetyPolicy.SCAM_RISK in f.flags &&
+            scamWarner.shouldWarn(f.pkg, android.os.SystemClock.elapsedRealtime())) svc.warnScam()
+        if (prefs.familyGroup != null) bg.execute { runCatching { safetyReporter.onSnapshot(f) } }
     }
+    private val scamWarner = com.r17e.guide.safety.ScamWarner()
 
     fun flushSafety() = bg.execute { runCatching { safetyReporter.flush() } }
 
