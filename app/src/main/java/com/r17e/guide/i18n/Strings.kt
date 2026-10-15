@@ -127,6 +127,8 @@ object S {
         "theme_note" to Triple("Follows your phone's light or dark setting.", "फ़ोन की लाइट या डार्क सेटिंग के हिसाब से बदलता है।", "Phone ki light ya dark setting ke hisaab se badalta hai."),
         "appearance" to Triple("Appearance", "रूप", "Look"),
         "help_running" to Triple("Helper is running", "सहायक चल रहा है", "Helper chal raha hai"),
+        "unused_short" to Triple("Turn off \"Pause app activity if unused\" so I stay ready.", "\"Pause app activity if unused\" बंद कीजिए, ताकि मैं तैयार रहूँ।", "\"Pause app activity if unused\" band kijiye, taaki main ready rahoon."),
+        "battery_short" to Triple("Choose \"Unrestricted\" so I keep running while we talk.", "\"Unrestricted\" चुनिए, ताकि बात करते समय मैं बंद न होऊँ।", "\"Unrestricted\" chuniye, taaki baat karte waqt main band na hoon."),
         "bubble_hint" to Triple("Tap to talk", "बात करने के लिए दबाइए", "Baat karne ke liye dabaiye"),
     )
 

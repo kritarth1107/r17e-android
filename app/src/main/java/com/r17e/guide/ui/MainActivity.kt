@@ -304,7 +304,7 @@ class MainActivity : ComponentActivity() {
                 if (!running && prefs.stoppedIdle) Banner(Tone.Info, null, s("stopped_idle"), icon = Icons.Rounded.Bedtime)
                 if (!micOk) Banner(Tone.Error, null, s("mic_needed"), action = s("allow")) { askMic.launch(Manifest.permission.RECORD_AUDIO) }
                 A11yBanner(lang, a11y)
-                if (unusedPauseOn) Banner(Tone.Warning, s("unused_title"), s("unused_body"), action = s("fix_now"), icon = Icons.Rounded.EventBusy) {
+                if (unusedPauseOn) Banner(Tone.Warning, s("unused_title"), s("unused_short"), action = s("fix_now"), icon = Icons.Rounded.EventBusy) {
                     openSystem(Intent.ACTION_AUTO_REVOKE_PERMISSIONS, pkgUri = true)
                 }
                 SectionCard {
@@ -388,9 +388,9 @@ class MainActivity : ComponentActivity() {
                         onClick = { openSystem(Settings.ACTION_ACCESSIBILITY_SETTINGS) })
                     if (a11y == A11yStatus.State.STUCK) Banner(Tone.Error, null, s("a11y_stuck"))
                     if (unusedPauseOn) { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        ListRow(Icons.Rounded.EventBusy, s("unused_title"), s("unused_body"), onClick = { openSystem(Intent.ACTION_AUTO_REVOKE_PERMISSIONS, pkgUri = true) }) }
+                        ListRow(Icons.Rounded.EventBusy, s("unused_title"), s("unused_short"), onClick = { openSystem(Intent.ACTION_AUTO_REVOKE_PERMISSIONS, pkgUri = true) }) }
                     if (batteryRestricted) { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        ListRow(Icons.Rounded.BatteryAlert, s("battery_title"), s("battery_body"), onClick = { openSystem(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS) }) }
+                        ListRow(Icons.Rounded.BatteryAlert, s("battery_title"), s("battery_short"), onClick = { openSystem(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS) }) }
                 }
                 SectionHeader(s("language"))
                 SectionCard { LangChoices(lang, setLang) }
