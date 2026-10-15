@@ -34,6 +34,7 @@ class GuideSessionService : Service() {
     private val debugSay = object : android.content.BroadcastReceiver() {
         override fun onReceive(c: Context, i: Intent) {
             if (i.getBooleanExtra("drop", false)) { controller?.debugDropConnection(); return }
+            if (i.getBooleanExtra("stop", false)) { stopSelf(); return }
             if (i.getBooleanExtra("offline_retry", false)) { controller?.retryFromOffline("debug"); return }
             i.getStringExtra("audio")?.let { controller?.injectAudio(java.io.File(getExternalFilesDir(null), it)); return }
             i.getStringExtra("text")?.let { android.util.Log.i("R17E_CTL", "debug say (controller=${controller != null})"); if (offline != null) offline?.onHeard(listOf(it)) else controller?.sendText(it) } }
@@ -47,6 +48,7 @@ class GuideSessionService : Service() {
     /** Speak a short scam warning by itself (rate-limited by the caller). Uses the live voice when connected, else on-device TTS. */
     fun warnScam() {
         val lang = (application as R17eApp).prefs.lang
+        com.r17e.guide.a11y.GuideAccessibilityService.instance?.showScamBanner()
         val c = controller
         if (c != null && c.isLive && offline == null) {
             c.sendText("[Safety notice from the phone, not from the user] The screen now shows signs of a scam " +
@@ -93,7 +95,7 @@ class GuideSessionService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val stop = PendingIntent.getService(this, 1, Intent(this, GuideSessionService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE)
         val n = Notification.Builder(this, CHANNEL)
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setSmallIcon(com.r17e.guide.R.drawable.ic_mic)
             .setContentTitle(com.r17e.guide.i18n.S.get(lang, "notif_listening"))
             .setContentText(com.r17e.guide.i18n.S.get(lang, "notif_text"))
             .setContentIntent(open)

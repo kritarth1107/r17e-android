@@ -28,6 +28,13 @@ class GuideAccessibilityService : AccessibilityService() {
 
     lateinit var highlight: HighlightOverlay; private set
     private lateinit var bubble: HelperBubble
+    private val scamBanner by lazy { com.r17e.guide.overlay.ScamBanner(this) }
+
+    /** Visual half of the scam warning (the voice half is spoken by the session). Main thread. */
+    fun showScamBanner() {
+        val lang = (application as com.r17e.guide.R17eApp).prefs.lang
+        scamBanner.show(S.get(lang, "scam_title"), S.get(lang, "scam_warn"), S.get(lang, "got_it"))
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     @Volatile var current: Snapshot? = null; private set
@@ -102,6 +109,7 @@ class GuideAccessibilityService : AccessibilityService() {
         scope.cancel()
         if (::bubble.isInitialized) bubble.hide()
         if (::highlight.isInitialized) highlight.hide()
+        scamBanner.hide()
         // On a rebind Android can connect the new instance before destroying the old one: only clear if we are current.
         if (instance === this) { instance = null; A11yStatus.setConnected(false) }
         Log.i(TAG, "service destroyed (current=${instance == null})")

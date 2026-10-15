@@ -8,6 +8,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.ViewGroup
 import android.widget.*
 import com.r17e.guide.a11y.Snapshot
 import kotlin.math.abs
@@ -15,7 +16,8 @@ import kotlin.math.abs
 /**
  * Floating helper button shown on every screen while the screen helper is on.
  * Tap: start/stop the voice helper. Drag: move it (it snaps to the nearest edge and remembers its place).
- * Its colour and icon show the phase (grey off, green listening, blue speaking, amber connecting, red offline).
+ * Its colour and icon show the phase (outlined when off, filled brand blue with a mic or voice icon while active,
+ * a sync icon while connecting and a cloud-off icon offline).
  * Debug builds: long-press opens a node picker for testing the ring. It never acts on the other app.
  */
 class HelperBubble(
@@ -25,10 +27,10 @@ class HelperBubble(
     private val onTap: () -> Unit,
 ) {
     private val prefs = ctx.getSharedPreferences("r17e_bubble", Context.MODE_PRIVATE)
-    private val bg = GradientDrawable().apply { shape = GradientDrawable.OVAL; setStroke((4 * ctx.resources.displayMetrics.density).toInt(), Color.WHITE) }
+    private val bg = GradientDrawable().apply { shape = GradientDrawable.OVAL }
     private val wm = ctx.getSystemService(WindowManager::class.java)
     private val d = ctx.resources.displayMetrics.density
-    private var bubble: TextView? = null
+    private var bubble: ImageView? = null
     private var panel: View? = null
     private var listAdapter: ArrayAdapter<String>? = null
     private var ids: List<String> = emptyList()
@@ -44,11 +46,12 @@ class HelperBubble(
 
     fun show() {
         if (bubble != null) return
-        val b = TextView(ctx).apply {
-            textSize = 30f; setTextColor(Color.WHITE); gravity = Gravity.CENTER
-            val s = (72 * d).toInt(); width = s; height = s
-            background = bg; elevation = 8 * d
+        val b = ImageView(ctx).apply {
+            val s = (64 * d).toInt(); layoutParams = ViewGroup.LayoutParams(s, s); minimumWidth = s; minimumHeight = s
+            val p = (18 * d).toInt(); setPadding(p, p, p, p); scaleType = ImageView.ScaleType.FIT_CENTER
+            background = bg; elevation = 6 * d
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+            isClickable = true; isFocusable = true
         }
         var sx = 0f; var sy = 0f; var ox = 0; var oy = 0; var moved = false; var downAt = 0L
         b.setOnTouchListener { v, e ->
@@ -80,21 +83,25 @@ class HelperBubble(
     fun render(phase: com.r17e.guide.session.Phase, description: String) {
         label = description
         val b = bubble ?: return
-        val (color, icon) = when (phase) {
-            com.r17e.guide.session.Phase.LISTENING -> Color.rgb(27, 127, 59) to "🎤"
-            com.r17e.guide.session.Phase.SPEAKING -> Color.rgb(11, 79, 168) to "🔊"
-            com.r17e.guide.session.Phase.CONNECTING, com.r17e.guide.session.Phase.RECONNECTING -> Color.rgb(154, 91, 0) to "…"
-            com.r17e.guide.session.Phase.OFFLINE -> Color.rgb(179, 38, 30) to "🎤"
-            com.r17e.guide.session.Phase.STOPPED -> Color.rgb(11, 79, 168) to "?"
+        val pal = OverlayPalette(ctx)
+        val (color, iconRes, tint) = when (phase) {
+            com.r17e.guide.session.Phase.LISTENING -> Triple(pal.primary, com.r17e.guide.R.drawable.ic_mic, pal.onPrimary)
+            com.r17e.guide.session.Phase.SPEAKING -> Triple(pal.primary, com.r17e.guide.R.drawable.ic_graphic_eq, pal.onPrimary)
+            com.r17e.guide.session.Phase.CONNECTING, com.r17e.guide.session.Phase.RECONNECTING -> Triple(pal.surface, com.r17e.guide.R.drawable.ic_sync, pal.primary)
+            com.r17e.guide.session.Phase.OFFLINE -> Triple(pal.warningContainer, com.r17e.guide.R.drawable.ic_cloud_off, pal.onWarningContainer)
+            com.r17e.guide.session.Phase.STOPPED -> Triple(pal.surface, com.r17e.guide.R.drawable.ic_mic, pal.primary)
         }
-        bg.setColor(color); b.text = icon; b.contentDescription = description
+        bg.setColor(color)
+        bg.setStroke((1.5f * d).toInt(), if (color == pal.surface) pal.outline else color)
+        b.setImageResource(iconRes); b.imageTintList = android.content.res.ColorStateList.valueOf(tint)
+        b.contentDescription = description
         b.animate().cancel()
         if (phase == com.r17e.guide.session.Phase.LISTENING || phase == com.r17e.guide.session.Phase.SPEAKING) pulse(b) else { b.scaleX = 1f; b.scaleY = 1f }
     }
 
     private fun pulse(v: View) {
-        v.animate().scaleX(1.12f).scaleY(1.12f).setDuration(600).withEndAction {
-            v.animate().scaleX(1f).scaleY(1f).setDuration(600).withEndAction {
+        v.animate().scaleX(1.06f).scaleY(1.06f).setDuration(700).withEndAction {
+            v.animate().scaleX(1f).scaleY(1f).setDuration(700).withEndAction {
                 val p = com.r17e.guide.session.HelperState.status.value.phase
                 if (bubble === v && (p == com.r17e.guide.session.Phase.LISTENING || p == com.r17e.guide.session.Phase.SPEAKING)) pulse(v)
             }.start()

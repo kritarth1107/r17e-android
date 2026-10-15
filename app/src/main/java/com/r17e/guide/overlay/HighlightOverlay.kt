@@ -18,6 +18,7 @@ class HighlightOverlay(private val ctx: Context) {
         targetId = nodeId
         val v = view ?: RingView(ctx).also { attach(it); view = it }
         v.caption = caption
+        v.label = com.r17e.guide.i18n.S.get((ctx.applicationContext as com.r17e.guide.R17eApp).prefs.lang, "next_step")
         v.setTarget(RectF(n.left.toFloat(), n.top.toFloat(), n.right.toFloat(), n.bottom.toFloat()))
     }
 
@@ -48,49 +49,79 @@ class HighlightOverlay(private val ctx: Context) {
         wm.addView(v, lp)
     }
 
+    /**
+     * Ring + caption, drawn to match the app: a brand-blue rounded ring with a light halo (readable on any app),
+     * a gentle "breathing" outer glow, and a Material-style caption card with a "Next step" label and a pointer.
+     */
     private class RingView(ctx: Context) : View(ctx) {
         var caption = ""
+        var label = ""
         private var target: RectF? = null
         private var pulse = 0f
         private val loc = IntArray(2)
-        private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            style = Paint.Style.STROKE; color = Color.rgb(255, 176, 0)
-        }
-        private val capBg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(230, 20, 20, 20) }
-        private val capText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE; textSize = 22f * resources.displayMetrics.scaledDensity
-        }
+        private val pal = OverlayPalette(ctx)
+        private val d = resources.displayMetrics.density
+        private val sp = resources.displayMetrics.scaledDensity
+        private val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = pal.ring; strokeWidth = 4 * d }
+        private val halo = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = pal.ringHalo; strokeWidth = 8 * d }
+        private val glow = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = pal.ring }
+        private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = (pal.ring and 0x00FFFFFF) or 0x1A000000 }
+        private val card = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.surface; setShadowLayer(12 * d, 0f, 4 * d, 0x40000000) }
+        private val cardStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; color = pal.outline; strokeWidth = 1 * d }
+        private val labelText = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.primary; textSize = 14 * sp; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); letterSpacing = 0.04f }
+        private val capText = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.onSurface; textSize = 20 * sp; typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL) }
+        private val accent = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = pal.primary }
         private val anim = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 900; repeatCount = ValueAnimator.INFINITE; repeatMode = ValueAnimator.REVERSE
+            duration = 1400; repeatCount = ValueAnimator.INFINITE; repeatMode = ValueAnimator.RESTART
+            interpolator = android.view.animation.DecelerateInterpolator()
             addUpdateListener { pulse = it.animatedValue as Float; invalidate() }
             start()
         }
+
+        init { setLayerType(LAYER_TYPE_SOFTWARE, null) } // shadow layer on the caption card
 
         fun setTarget(r: RectF) { target = r; invalidate() }
         fun stop() = anim.cancel()
 
         override fun onDraw(c: Canvas) {
             val t = target ?: return
-            getLocationOnScreen(loc) // screen coords -> view coords
+            getLocationOnScreen(loc)
             val r = RectF(t).apply { offset(-loc[0].toFloat(), -loc[1].toFloat()) }
-            val d = resources.displayMetrics.density
-            val pad = (6 + 10 * pulse) * d
-            ring.strokeWidth = (4 + 3 * pulse) * d
-            ring.alpha = (255 - 120 * pulse).toInt()
-            c.drawRoundRect(r.left - pad, r.top - pad, r.right + pad, r.bottom + pad, 16 * d, 16 * d, ring)
-            if (caption.isNotEmpty()) {
-                // Wrap to the screen width (max 3 lines); long captions used to crash coerceIn with an empty range.
-                val maxW = (width - 40 * d).coerceAtLeast(1f)
-                val lines = wrap(caption, maxW)
-                val lineH = capText.textSize * 1.3f
-                val tw = lines.maxOf { capText.measureText(it) }
-                val h = lineH * lines.size + capText.textSize * 0.4f
-                val x = (r.centerX() - tw / 2).coerceIn(20 * d, maxOf(20 * d, width - tw - 20 * d))
-                var y = r.bottom + pad + 12 * d
-                if (y + h > height) y = (r.top - pad - 12 * d - h).coerceAtLeast(0f)
-                c.drawRoundRect(x - 12 * d, y, x + tw + 12 * d, y + h, 12 * d, 12 * d, capBg)
-                lines.forEachIndexed { i, l -> c.drawText(l, x, y + lineH * (i + 0.85f), capText) }
+            val pad = 8 * d; val rad = 16 * d
+            val box = RectF(r.left - pad, r.top - pad, r.right + pad, r.bottom + pad)
+            c.drawRoundRect(box, rad, rad, fill)
+            val g = 10 * d * pulse
+            glow.strokeWidth = 3 * d; glow.alpha = (140 * (1 - pulse)).toInt()
+            c.drawRoundRect(box.left - g, box.top - g, box.right + g, box.bottom + g, rad + g, rad + g, glow)
+            c.drawRoundRect(box, rad, rad, halo)
+            c.drawRoundRect(box, rad, rad, ring)
+            if (caption.isEmpty()) return
+            val margin = 16 * d; val padH = 16 * d; val padV = 12 * d
+            val maxW = (width - 2 * margin - 2 * padH - 12 * d).coerceAtLeast(1f)
+            val lines = wrap(caption, maxW)
+            val lineH = capText.textSize * 1.3f
+            val textW = maxOf(lines.maxOf { capText.measureText(it) }, labelText.measureText(label))
+            val cw = textW + 2 * padH + 12 * d
+            val ch = padV * 2 + labelText.textSize * 1.4f + lineH * lines.size
+            val cx = (box.centerX() - cw / 2).coerceIn(margin, maxOf(margin, width - cw - margin))
+            val below = box.bottom + 14 * d + ch <= height - 24 * d
+            val cy = if (below) box.bottom + 14 * d else (box.top - 14 * d - ch).coerceAtLeast(24 * d)
+            val cardR = RectF(cx, cy, cx + cw, cy + ch)
+            // pointer toward the ring
+            val px = box.centerX().coerceIn(cardR.left + 20 * d, cardR.right - 20 * d)
+            val path = Path().apply {
+                if (below) { moveTo(px - 9 * d, cardR.top + 1); lineTo(px, cardR.top - 9 * d); lineTo(px + 9 * d, cardR.top + 1) }
+                else { moveTo(px - 9 * d, cardR.bottom - 1); lineTo(px, cardR.bottom + 9 * d); lineTo(px + 9 * d, cardR.bottom - 1) }
+                close()
             }
+            c.drawRoundRect(cardR, 16 * d, 16 * d, card)
+            c.drawRoundRect(cardR, 16 * d, 16 * d, cardStroke)
+            c.drawPath(path, card)
+            c.drawRoundRect(cardR.left + 10 * d, cardR.top + padV, cardR.left + 14 * d, cardR.bottom - padV, 2 * d, 2 * d, accent)
+            val tx = cardR.left + padH + 12 * d
+            c.drawText(label.uppercase(), tx, cardR.top + padV + labelText.textSize, labelText)
+            val ty0 = cardR.top + padV + labelText.textSize * 1.4f
+            lines.forEachIndexed { i, l -> c.drawText(l, tx, ty0 + lineH * (i + 0.8f), capText) }
         }
 
         private fun wrap(text: String, maxW: Float): List<String> {
