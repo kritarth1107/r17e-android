@@ -27,10 +27,11 @@ Guide-only voice helper for elders: it shows where to tap and never taps for you
 - Hindi and Hinglish use one consistent polite form (-इए / -iye); gender-neutral agreement; copy matches the blue ring.
 
 ## Tests and CI
-- Unit tests: 38 (v0.2) → 67. Instrumented tests: 0 → 10 (screens render, every clickable labelled, 48dp targets, onboarding, Settings, Hindi home, no emoji, bubble foreground flag).
+- Unit tests: 38 (v0.2) → 65. Instrumented tests: 0 → 10 (screens render, every clickable labelled, 48dp targets, onboarding, Settings, Hindi home, no emoji, bubble foreground flag).
 - CI runs the instrumented tests on a free KVM emulator (API 34) next to build, unit tests and lint.
 
 Screenshots: before/after redesign (light, dark, 1.3x font) and v0.3 walk-through.
 See docs/TESTING.md and docs/KNOWN_ISSUES.md.
 
-APK SHA-256: (filled in when the APK is built)
+APK: r17e-android-v0.3.0-debug.apk, built from 86e6c90, signed with the shared debug key (same certificate as v0.2.0-debug, so it installs as an update).
+APK SHA-256: e7d28dc80495b3417afe40fc0c4dc018ab5f026770fd46a9d9971a1d68a4e38f
