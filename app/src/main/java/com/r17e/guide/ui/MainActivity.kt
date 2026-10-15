@@ -71,9 +71,12 @@ class MainActivity : ComponentActivity() {
         var now by remember { mutableLongStateOf(android.os.SystemClock.elapsedRealtime()) }
         LaunchedEffect(Unit) {
             while (true) {
-                enabled = A11yStatus.isEnabled(this@MainActivity)
-                now = android.os.SystemClock.elapsedRealtime()
-                since = if (enabled && !A11yStatus.connected.value) (since ?: now) else null
+                // Only write state when something changes, so the UI stays idle (no per-second recomposition).
+                val e = A11yStatus.isEnabled(this@MainActivity)
+                if (e != enabled) enabled = e
+                val waiting = e && !A11yStatus.connected.value
+                if (waiting) { val t = android.os.SystemClock.elapsedRealtime(); if (since == null) since = t; if (t - since!! <= A11yStatus.GRACE_MS + 1000) now = t }
+                else if (since != null) since = null
                 kotlinx.coroutines.delay(1000)
             }
         }
