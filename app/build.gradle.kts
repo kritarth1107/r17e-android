@@ -14,7 +14,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 3
-        versionName = "0.3.0-dev"
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Defaults to the prod backend. Local: -Pr17e.backendUrl=http://10.0.2.2:8080 (emulator) or, for a USB phone,
         // `adb reverse tcp:8080 tcp:8080` and -Pr17e.backendUrl=http://localhost:8080

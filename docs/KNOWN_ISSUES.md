@@ -1,4 +1,4 @@
-# Known issues (v0.2.0-debug)
+# Known issues (v0.3.0-debug)
 - Emulator microphone records silence until macOS grants the emulator mic permission. Voice was tested by WAV injection.
 - The backend does not yet verify the Play Integrity verdict (the token is sent but not checked).
 - Family linking works by code only; there is no QR code yet.
@@ -8,5 +8,8 @@
 - The backend gives the phone a full Live access token. This should be replaced with ephemeral or scoped tokens.
 - Offline voice (TTS/STT) depends on the device's installed language packs.
 - Safety alert `details.screen` is "?" for some apps (no class name available).
-- After reinstalling over adb, Android can leave the accessibility service unbound. Toggle it off and on.
 - The offline safety queue is covered by unit tests; it has not yet been tested end to end on a device.
+- `connectedDebugAndroidTest` (AGP) uninstalls the app afterwards, which clears its data and turns off the screen helper on a dev device.
+- A hands-on TalkBack walk could not be automated on the emulator (adb swipes are not treated as TalkBack gestures); TalkBack labels, headings, live region and target sizes are covered by instrumented tests.
+- While a system dialog covers R17E, the bubble shows on top (R17E is paused).
+- Barge-in confirmed by the server takes ~550 ms (server VAD); the app ducks its own audio sooner.
