@@ -36,4 +36,14 @@ class StringsQualityTest {
     @Test fun agreeIsGenderNeutralInHindi() {
         assertFalse(S.get(Lang.HI, "agree").contains("मैं समझ गया"))
     }
+
+    /** Hindi uses the same polite "-इए" imperative as Hinglish, not a mix with "-ें" forms. */
+    @Test fun hindiImperativesAreConsistent() {
+        val mixed = Regex("(^|[\\s\"])(करें|दें|चुनें|खोलें|दबाएँ|लिखें|लें|छोड़ें|रखें|खोजें|देखें|बताएँ|भेजें)([\\s।,\"!?]|$)")
+        for (k in S.keys) assertFalse("Hindi $k mixes -ें imperative: ${S.get(Lang.HI, k)}", mixed.containsMatchIn(S.get(Lang.HI, k)))
+    }
+
+    @Test fun ringColourMatchesCopy() {
+        for (l in Lang.values()) assertFalse(S.get(l, "how_2").contains("yellow", ignoreCase = true))
+    }
 }
