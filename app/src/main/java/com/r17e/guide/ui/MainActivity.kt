@@ -293,7 +293,9 @@ class MainActivity : ComponentActivity() {
                 StatusHero(status.phase, phaseTitle(lang, status.phase))
                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Space.s1),
                     modifier = Modifier.semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite }) {
-                    Text(phaseTitle(lang, status.phase), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center)
+                    Text(phaseTitle(lang, status.phase), style = MaterialTheme.typography.headlineSmall, textAlign = TextAlign.Center,
+                        // TalkBack users hear "Listening", "Speaking", "Reconnecting" as the state changes.
+                        modifier = Modifier.semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Polite })
                     Text(phaseSub(lang, status.phase), style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
