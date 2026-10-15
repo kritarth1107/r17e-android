@@ -61,7 +61,9 @@ class GuideAccessibilityService : AccessibilityService() {
         val pkg = event.packageName?.toString()
         if (pkg == packageName) {
             // Our own app is in front: it has its own big button, so the bubble would only cover the heading.
-            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && ::bubble.isInitialized) bubble.setSuppressed(true)
+            // Only our activity counts; our own overlay windows (ring, scam card) also fire window events.
+            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && ::bubble.isInitialized &&
+                event.className?.toString()?.startsWith("com.r17e.guide.ui.") == true) bubble.setSuppressed(true)
             return // ignore our own overlays
         }
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && ::bubble.isInitialized && pkg != null &&
