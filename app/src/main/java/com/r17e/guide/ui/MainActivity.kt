@@ -257,7 +257,7 @@ class MainActivity : ComponentActivity() {
         PrimaryButton(if (busy) s("family_wait") else s("family_connect"), loading = busy, enabled = code.length >= 6, icon = Icons.Rounded.Link) {
             busy = true
             scope.launch {
-                val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { app.backend.linkFamily(app.auth.accessToken(), code) } }
+                val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { runCatching { app.authed { app.backend.linkFamily(it, code) } } }
                 busy = false
                 r.onSuccess { name -> val g = name.ifBlank { "Family" }; prefs.familyGroup = g; familyGroup = g; app.flushSafety() }
                  .onFailure { e -> val c = (e as? com.r17e.guide.backend.BackendException)?.code; error = if (c == 404 || c == 400) s("family_bad_code") else s("family_net") }

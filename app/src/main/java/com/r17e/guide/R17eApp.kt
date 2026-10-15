@@ -24,6 +24,8 @@ class R17eApp : Application() {
             integrity = playIntegrity)
     }
     val playIntegrity by lazy { PlayIntegrity(this, BuildConfig.GCP_PROJECT_NUMBER) }
+    /** Backend call with a token, retried once after a refresh if the token expired. */
+    fun <T> authed(block: (String) -> T): T = com.r17e.guide.backend.withAuthRetry(auth::accessToken, auth::invalidate, block)
     val liveTokens by lazy { LiveTokenProvider(backend, auth::accessToken, auth::invalidate) }
 
     fun newController(onState: (GuideController.State) -> Unit, onIdle: () -> Unit = {}) =
@@ -34,11 +36,11 @@ class R17eApp : Application() {
         RecipeRepository(
             bundled = RecipeBook.parse(assets.open("recipes.json").bufferedReader().use { it.readText() }),
             cacheFile = java.io.File(filesDir, "saved_recipes.json"),
-            fetch = { backend.recipesJson(auth.accessToken()) },
+            fetch = { authed { backend.recipesJson(it) } },
         )
     }
     val safetyReporter by lazy {
-        com.r17e.guide.safety.SafetyReporter(java.io.File(filesDir, "safety_queue.json"), { backend.safetyEvent(auth.accessToken(), it) })
+        com.r17e.guide.safety.SafetyReporter(java.io.File(filesDir, "safety_queue.json"), { ev -> authed { backend.safetyEvent(it, ev) } })
     }
     private val bg = java.util.concurrent.Executors.newSingleThreadExecutor { Thread(it, "r17e-bg") }
 
