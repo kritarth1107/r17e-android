@@ -90,6 +90,9 @@ class MainActivity : ComponentActivity() {
         return A11yStatus.state(enabled, connected, since, now)
     }
 
+    override fun onResume() { super.onResume(); com.r17e.guide.a11y.GuideAccessibilityService.appInFront = true }
+    override fun onPause() { com.r17e.guide.a11y.GuideAccessibilityService.appInFront = false; super.onPause() }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)

@@ -46,7 +46,7 @@ class GuideAccessibilityService : AccessibilityService() {
         bubble = HelperBubble(this, highlight, { current }) {
             if (HelperState.status.value.phase == Phase.STOPPED) GuideSessionService.start(this) else GuideSessionService.stop(this)
         }
-        bubble.show()
+        bubble.show(); bubble.setSuppressed(appInFront)
         scope.launch {
             HelperState.status.collectLatest { st ->
                 val lang = (application as com.r17e.guide.R17eApp).prefs.lang
@@ -59,15 +59,7 @@ class GuideAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val pkg = event.packageName?.toString()
-        if (pkg == packageName) {
-            // Our own app is in front: it has its own big button, so the bubble would only cover the heading.
-            // Only our activity counts; our own overlay windows (ring, scam card) also fire window events.
-            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && ::bubble.isInitialized &&
-                event.className?.toString()?.startsWith("com.r17e.guide.ui.") == true) bubble.setSuppressed(true)
-            return // ignore our own overlays
-        }
-        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED && ::bubble.isInitialized && pkg != null &&
-            pkg != "com.android.systemui") bubble.setSuppressed(false)
+        if (pkg == packageName) return // ignore our own app and overlays; MainActivity reports its own visibility
         handler.removeCallbacks(snapshotRunnable)
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             event.className?.toString()?.let { lastScreen = it.substringAfterLast('.') }
@@ -123,5 +115,8 @@ class GuideAccessibilityService : AccessibilityService() {
         const val SNAP_TAG = "R17E_SNAP"
         const val DEBOUNCE_MS = 150L
         @Volatile var instance: GuideAccessibilityService? = null
+        /** True while MainActivity is resumed: it has its own big button, so the bubble would only cover it. */
+        @Volatile var appInFront = false
+            set(v) { field = v; instance?.let { svc -> svc.handler.post { if (svc::bubble.isInitialized) svc.bubble.setSuppressed(v) } } }
     }
 }

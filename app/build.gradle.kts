@@ -15,6 +15,7 @@ android {
         targetSdk = 36
         versionCode = 3
         versionName = "0.3.0-dev"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // Defaults to the prod backend. Local: -Pr17e.backendUrl=http://10.0.2.2:8080 (emulator) or, for a USB phone,
         // `adb reverse tcp:8080 tcp:8080` and -Pr17e.backendUrl=http://localhost:8080
         // Play Integrity: GCP project number (not id). Set r17e.gcpProjectNumber in ~/.gradle/gradle.properties or -P.
@@ -68,4 +69,10 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+
+    androidTestImplementation(composeBom)
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
