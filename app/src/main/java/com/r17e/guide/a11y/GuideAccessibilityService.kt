@@ -117,6 +117,13 @@ class GuideAccessibilityService : AccessibilityService() {
         @Volatile var instance: GuideAccessibilityService? = null
         /** True while MainActivity is resumed: it has its own big button, so the bubble would only cover it. */
         @Volatile var appInFront = false
-            set(v) { field = v; instance?.let { svc -> svc.handler.post { if (svc::bubble.isInitialized) svc.bubble.setSuppressed(v) } } }
+            set(v) {
+                field = v
+                instance?.let { svc -> svc.handler.post {
+                    if (svc::bubble.isInitialized) svc.bubble.setSuppressed(v)
+                    // The scam card belongs to the risky screen; once the elder is back in our app it would only cover it.
+                    if (v) svc.scamBanner.hide()
+                } }
+            }
     }
 }
